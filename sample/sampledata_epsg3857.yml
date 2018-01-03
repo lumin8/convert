@@ -1,5 +1,5 @@
 ---
-sampledata_3857.csv:
+sampledata_epsg3857.csv:
     x_field: "utm_east"
     y_field: "utm_north"
     z_field: "elev_m"
@@ -8,4 +8,5 @@ sampledata_3857.csv:
     z_center: 1314
     srs: "EPSG:3857"
     units: metric
+    type: "point"
 --- 
