@@ -1,0 +1,11 @@
+---
+sampledata_3857.csv:
+    x_field: "utm_east"
+    y_field: "utm_north"
+    z_field: "elev_m"
+    x_center: -14615593
+    y_center: 7772677
+    z_center: 1314
+    srs: "EPSG:3857"
+    units: metric
+--- 
