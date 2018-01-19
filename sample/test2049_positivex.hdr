@@ -1,0 +1,14 @@
+ENVI
+description = {
+test2049_positivex.raw}
+samples = 2049
+lines   = 2049
+bands   = 1
+header offset = 0
+file type = ENVI Standard
+data type = 12
+interleave = bsq
+byte order = 0
+map info = {Arbitrary, 1, 1, 359180, 6328420, 1.67886774036115, 1.68862859931674, 0, North}
+band names = {
+Band 1}
