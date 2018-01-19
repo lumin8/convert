@@ -1,5 +1,5 @@
 # csv2json.py
-
+Converts a csv to unity json
 ## usage
 
 `python xyz2json.py /some/file.csv`
@@ -10,15 +10,23 @@
 -- lines
 -- polygons
 
-converts a csv to a unity json
-
 # xyz2json.py
-
+Converts a geotif to a unity json 'cloud of surface points'
 ## usage
 
 `python xyz2json.py /some/file.tif`
 
-converts a tif to a unity json
+- requires a corresponding yml file that maps spatial reference system (srs) of original tif
+- converts to 3857 (temp file, removed after processing .raw file)
+
+# tif2raw.py
+Converts a geotif to a .RAW file for unity import
+## usage
+
+`python tif2raw.py /some/file.tif`
+
+- requires a corresponding yml file that maps spatial reference system (srs) of original tif
+- converts to 3857 (temp file, removed after processing .raw file)
 
 # unity json format 
 ```{

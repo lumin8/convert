@@ -11,15 +11,16 @@ import os
 import subprocess
 from os.path import basename
 import yaml
+import glob
 
 def convert(tif):
 
     path = os.path.dirname(os.path.realpath(tif))
     filename = tif.split('.')
-    xyz = filename[0] + ".xyz"
-    json = filename[0] + ".json"
-    yml = filename[0] + ".yml"
+    raw = filename[0] + ".raw"
+    header = filename[0] + ".hdr"
     tifnew = filename[0] + "_3857.tif"
+    yml = filename[0] + ".yml"
     filebase = basename(filename[0])
 
     config = yaml.safe_load(open(yml))
@@ -43,44 +44,36 @@ def convert(tif):
                 tif,
                 tifnew]
             subprocess.check_output(localoptions, stderr=subprocess.STDOUT)
-
-        def toXYZ():
-	    localoptions = [
+        
+        def toraw():
+            os.chdir(path)
+	    options = [
 	        'gdal_translate',
+	        '-ot',
+	        'UInt16',
+	        '-scale',
 	        '-of',
-	        'XYZ',
-	        '-a_nodata',
-	        '0',
+                'ENVI',
+                '-outsize',
+                '2049',
+                '2049',
+                '-a_nodata',
+                '0',
 	        tifnew,
-	        xyz]
-	    subprocess.check_output(localoptions, stderr=subprocess.STDOUT)
+	        raw]
+	    subprocess.check_output(options)
+
+        searchpath = path + "/" + filebase + ".raw*"
+        for name in glob.glob(searchpath):
+            try:
+                os.remove(name)
+                os.remove(hdr)
+            except OSError:
+                pass
 
         warp()
-        toXYZ()
+        toraw()
         os.remove(tifnew)
-
-        xyzfile = open(xyz,'r')
-        jsonfile = open(json, 'w')
-
-        data = '{"points": ['
-
-        for line in xyzfile:
-            values = line.split()
-
-            if values[2] == '0': continue
-
-            data += '{'
-            data += '"x": ' + values[0] + ','
-            data += '"y": ' + values[1] + ','
-            data += '"z": ' + values[2]
-            data += '},'
-
-        data = data[:-1]
-        data += ']}'
-        
-        jsonfile.write(data)
-
-        os.remove(xyz)
 
     except Exception as e:
         print (str(e))
@@ -89,4 +82,4 @@ def convert(tif):
 if (sys.argv[1]):
     convert(sys.argv[1])
 else:
-    print ("please include a /full/path/name.tif as an argument variable for this tool")
+    print ("please include a filepath/name as an argument variable for this tool")
