@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+	<coordinateSystem>
+		<name>Universal Transverse Mercator - Zone 09 (N)</name>
+		<datum>North American 1983 (Canada)</datum>
+		<system>Transverse Mercator</system>
+		<unit>Meter</unit>
+		<majorAxis>6.378137000000000000000000e+006</majorAxis>
+		<eccentricity>8.181919104281579200000000e-002</eccentricity>
+		<centerX>0.000000000000000000000000e+000</centerX>
+		<centerY>0.000000000000000000000000e+000</centerY>
+		<centerZ>0.000000000000000000000000e+000</centerZ>
+		<rotationX>0.000000000000000000000000e+000</rotationX>
+		<rotationY>0.000000000000000000000000e+000</rotationY>
+		<rotationZ>0.000000000000000000000000e+000</rotationZ>
+		<scaleAdjustment>0.000000000000000000000000e+000</scaleAdjustment>
+		<scaleX>9.996000000000000400000000e-001</scaleX>
+		<localScaleX>2.000000000000000000000000e+001</localScaleX>
+		<scaleY>9.996000000000000400000000e-001</scaleY>
+		<localScaleY>2.000000000000000000000000e+001</localScaleY>
+		<falseEasting>5.000000000000000000000000e+005</falseEasting>
+		<localOffsetX>3.591900000000000000000000e+005</localOffsetX>
+		<falseNorthing>0.000000000000000000000000e+000</falseNorthing>
+		<localOffsetY>6.324970000000000000000000e+006</localOffsetY>
+		<centerLat>0.000000000000000000000000e+000</centerLat>
+		<centerLon>-1.290000000000000000000000e+002</centerLon>
+	</coordinateSystem>
+	<surface>
+		<channels>1</channels>
+		<cx>172</cx>
+		<cy>173</cy>
+		<type>Float32</type>
+		<void>1.17549e-038</void>
+	</surface>
+</data>
+
