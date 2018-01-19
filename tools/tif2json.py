@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-xyz2json conversion tool
+tif2json conversion tool
 takes a file as TIF
 outputs a file as JSON formatted for UNITY
 """
@@ -30,7 +30,6 @@ def convert(tif):
 	        '0',
 	        tif,
 	        xyz]
-	    print(' '.join(localoptions))
 	    subprocess.check_output(localoptions, stderr=subprocess.STDOUT)
 
         toXYZ()
