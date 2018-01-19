@@ -1,6 +1,6 @@
 # csv2json.py
 Converts a csv to unity json
-## usage
+### usage
 
 `python xyz2json.py /some/file.csv`
 
@@ -12,7 +12,7 @@ Converts a csv to unity json
 
 # xyz2json.py
 Converts a geotif to a unity json 'cloud of surface points'
-## usage
+### usage
 
 `python xyz2json.py /some/file.tif`
 
@@ -21,7 +21,7 @@ Converts a geotif to a unity json 'cloud of surface points'
 
 # tif2raw.py
 Converts a geotif to a .RAW file for unity import
-## usage
+### usage
 
 `python tif2raw.py /some/file.tif`
 
@@ -29,7 +29,8 @@ Converts a geotif to a .RAW file for unity import
 - converts to 3857 (temp file, removed after processing .raw file)
 
 # unity json format 
-```{
+```
+{
   "points": [
     {
       "x": -14615548,
@@ -40,6 +41,7 @@ Converts a geotif to a .RAW file for unity import
     }
   ]
 }
+```
 
 # known TBD
 - json formats exported by this tool are not formatted with \n or spaces!!!
