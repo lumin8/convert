@@ -7,4 +7,4 @@ trek_drilldata.csv:
     z_center: 1298
     srs: "EPSG:3857"
     units: metric
-    geom: "point"
+    geom: "points"
