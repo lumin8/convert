@@ -9,10 +9,10 @@ Converts a csv to unity json
 -- lines
 -- polygons
 
-# xyz2json.py
+# tif2json.py
 Converts a geotif to a unity json 'cloud of surface points'
 
-`python xyz2json.py /some/file.tif`
+`python tif2json.py /some/file.tif`
 
 - requires a corresponding yml file that maps spatial reference system (srs) of original tif
 - converts to 3857 (temp file, removed after processing .raw file)
