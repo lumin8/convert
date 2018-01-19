@@ -1,6 +1,6 @@
 ENVI
 description = {
-sampleheightmap_3857.raw}
+trek_heightmap.raw}
 samples = 1025
 lines   = 1025
 bands   = 1
