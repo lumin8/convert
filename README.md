@@ -1,4 +1,4 @@
-# Data
+# Overview
 It's all about the data.
 
 Currently, the DeepAR project uses:
@@ -30,7 +30,7 @@ VERY important information about EPSG: 3857
 - any points south of the equater are _negative_
 
 
-## Tools
+# Tools
 Several scripts are written in python (quick and dirty) to facilitate the conversion of data for the unity platform.  These scripts include:
 
 csv2json.py
@@ -39,7 +39,7 @@ tif2raw.py
 
 Visit the /tools directory for detailed information on their use.
 
-## Data
+# Data
 The provided dataset is of the 'Trek' project in Northern B.C, Canada.  Steep terrain, in meters
 Includes:
 - points (drill hole intercepts)
@@ -62,3 +62,9 @@ See the yml files in the Trek sample folder for examples
 - build up attributes for use in the colorizing of the featuresi
 - extend the YML files to include username/id, date, etc metadata
 - add an azimuth to points, if they have it, so they can be made into cylinders
+
+### References
+How to use convert and use RAW elevation models in Unity:
+https://alastaira.wordpress.com/2013/11/12/importing-dem-terrain-heightmaps-for-unity-using-gdal/
+
+
