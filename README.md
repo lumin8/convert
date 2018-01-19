@@ -1,17 +1,33 @@
 # Data
-It's all about the data.  CRUD, with conversion into the filetypes necessary for the DeepAR client apps.
+It's all about the data.
+
+Currently, the DeepAR project uses:
+- json  for points, surfaces (Digital Elevation Models 'DEM'), lines?
+- raw   for surfaces (in progress)
+
 
 ## Sample
-Several datasets included.
+Dataset is of the 'Trek' project in Northern B.C, Canada.  Steep terrain, in meters
 
-Clients should only Use those in EPSG:3857 (preferrably).
+## Spatial Reference System 'SRS' or 'ESPG'
 
-Sample sets in other projections systems (spatial reference systems / EPSG codes) are for conversion testing in the Data api.
+Clients should ubiquitously use the data in EPSG:3857 format
+- standardize all data coming in / out of the platform
+- Google, Bing, the rest of the world ises this projection
+- easy to convert server-side
 
-Data needs to be
-- converted to a standard projection (what does Unity use?)
-- converted to dxf or other as needed (what does Unity need?)
+## YML
+All datasets, when the API is operational, should prescribe a YML file (via use input) that maps the following, of any incoming data:
+-x_field
+-y_field
+-z_field
+-srs
+-meters
+See the yml files in the Trek sample folder for examples
 
-At this time, data is just in 3D point structure (x,y,z with attributes).
+### TBD
+- load up json data as lines
+- continue testing surfaces as json point clouds (see *heightmap* in the Trek sample data)
+- build up attributes for use in the colorizing of the features
+- add an azimuth to points, if the have it, so they can be made into cylinders
 
-Datasets for consumption by client also now include a YML describing the dataset.  See sample/somedata.yml for an example.
