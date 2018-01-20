@@ -72,7 +72,7 @@ def convert(tif):
             tmp = '{'
             tmp += '"x": ' + str(round(float(values[0]),2)) + ','
             tmp += '"y": ' + str(round(float(values[1]),2)) + ','
-            tmp += '"z": ' + str(round(float(values[2]),2))
+            tmp += '"z": ' + str(round(float(values[2]),2)-28)
             tmp += '},'
 
             tmp = tmp.replace("'", '"')
