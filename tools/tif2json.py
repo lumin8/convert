@@ -69,11 +69,14 @@ def convert(tif):
 
             if values[2] == '0': continue
 
-            data += '{'
-            data += '"x": ' + str(round(float(values[0]),2)) + ','
-            data += '"y": ' + str(round(float(values[1]),2)) + ','
-            data += '"z": ' + str(round(float(values[2]),2))
-            data += '},'
+            tmp = '{'
+            tmp += '"x": ' + str(round(float(values[0]),2)) + ','
+            tmp += '"y": ' + str(round(float(values[1]),2)) + ','
+            tmp += '"z": ' + str(round(float(values[2]),2))
+            tmp += '},'
+
+            tmp = tmp.replace("'", '"')
+            data += tmp
 
         data = data[:-1]
         data += ']}'

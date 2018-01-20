@@ -58,7 +58,8 @@ def convert(csvf):
 
             for line in d_reader:
 
-                data += str(line) + ','
+                tmp = str(line).replace("'", '"') 
+                data += tmp + ','
 
             data = data[:-1]
 
