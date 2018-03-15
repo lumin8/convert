@@ -1,0 +1,11 @@
+---
+dataset:
+    id: ""      #REQUIRED
+    xfield: ""  #REQUIRED IF CSV; field name of incoming x values
+    yfield: ""  #REQUIRED IF CSV; field name of incoming y values
+    zfield: ""  #REQUIRED IF CSV OK BLANK; field name of incoming elevation values (if not set, will default to DEM)
+    srs:         #REQUIRED 4-digit code that represents the incoming data coords (eg. '4326' or '3857')
+    geom:	 #REQUIRED [points, lines, shapes]
+    units:	 #REQUIRED [meters, feet]
+    format:      #csv, shp  tbd: dxf
+    data:        #REQUIRED

@@ -1,6 +1,5 @@
 package main
 
-
 import (
     "net/http"
     "strings"
@@ -14,6 +13,7 @@ import (
     "math"
     "os"
     "path/filepath"
+    "gopkg.in/yaml.v2"
 )
 
 
@@ -28,7 +28,7 @@ const (
 )
 
 
-type tileCount struct {
+type Requests struct {
     Shp int64 `json:"shp"`
     Csv int64 `json:"csv"`
     Dem int64 `json:"dem"`
