@@ -1,59 +1,74 @@
 {
-  "points": [
-    {
-      "x": ,
-      "y": ,
-      "z": ,
-      "attributes": [
-        {
-          "key": ,
-          "value": ,
-        }
-      ]
-    }
-  ]
-}
-
-
-{
-  "lines": [
-    {
-      "id": ,
+  "project": {
+    "id": null,
+    "dem": {
+      "id": null,
       "points": [
         {
-          "x": ,
-          "y": ,
-          "z": ,
-          "attributes": [
-            {
-              "key": ,
-              "value": ,
-            }
-          ]
+          "x": null,
+          "y": null,
+          "z": null
         }
       ]
-    }
-  ]
-}
-
-
-{
-  "shapes": [
-    {
-      "id": ,
-      "points": [
-        {
-          "x": ,
-          "y": ,
-          "z": ,
-          "attributes": [
-            {
-              "key": ,
-              "value": ,
-            }
-          ]
-        }
-      ]
-    }
-  ]
+    },
+    "datasets": [
+      {
+        "id": null,
+        "center": {
+          "x": null,
+          "y": null,
+          "z": null
+        },
+        "points": [
+          {
+            "x": null,
+            "y": null,
+            "z": null,
+            "attributes": [
+              {
+                "key": null,
+                "value": null
+              }
+            ]
+          }
+        ],
+        "lines": [
+          {
+            "id": null,
+            "points": [
+              {
+                "x": null,
+                "y": null,
+                "z": null,
+                "attributes": [
+                  {
+                    "key": null,
+                    "value": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "shapes": [
+          {
+            "id": null,
+            "points": [
+              {
+                "x": null,
+                "y": null,
+                "z": null,
+                "attributes": [
+                  {
+                    "key": null,
+                    "value": null
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }

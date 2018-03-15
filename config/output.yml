@@ -1,14 +1,26 @@
 ---
-projects:
-- datasets:
-  - points:
+project:
+  id:
+  dem:
+    id:
+    points:
+    - x:
+      y:
+      z:
+  datasets:
+  - id:
+    center:
+      x:
+      y:
+      z:
+    points:
     - x:
       y:
       z:
       attributes: 
       - key:
         value:
-  - lines:
+    lines:
     - id:
       points: 
       - x:
@@ -17,7 +29,7 @@ projects:
         attributes:
         - key:
           value:
-  - shapes:
+    shapes:
     - id: 
       points: 
       - x:
