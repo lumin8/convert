@@ -61,7 +61,7 @@ func main() {
     }
 
     m.HandleFunc("/data/", dataHandler)
-    m.HandleFunc("/", nullHandler)
+    m.HandleFunc("/dem/", nullHandler)
     log.Println("Listening on " + ListeningPort)
     proxy.ListenAndServe()
 }

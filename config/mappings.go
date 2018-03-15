@@ -12,6 +12,8 @@ type Dem struct {
 type Datasets struct {
     Id string `yaml:"id"`
     Center []Center
+    Bbox string `yaml:"bbox"`
+    S2hash string `yaml:"id"`
     Points []Points
     Lines []Lines
     Shapes []Shapes
@@ -36,7 +38,7 @@ type Attributes struct {
 }
 
 type Input struct {
-    Id: string `yaml:"dataset"`
+    Id string `yaml:"dataset"`
     Xfield float64 `yaml:"xfield"`
     Yfield float64 `yaml:"yfield"`
     Zfield float64 `yaml:"zfield"`
@@ -45,4 +47,20 @@ type Input struct {
     Units string `yaml:"units"`
     Format string `yaml:"format"`
     Data string `yaml:"data"`
+}
+
+type Tools struct {
+    Pytools []Pytools
+    Demfiles []Demfiles
+}
+
+type Pytools struct {
+    CsvConv string `yaml:"csv"`
+    ShpConv string `yaml:"shp"`
+    DxfConv string `yaml:"dxf"`
+}
+
+type DemFiles struct {
+    Usa string `yaml:"usa"`
+    World string `yaml:"world"`
 }

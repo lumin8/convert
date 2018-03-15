@@ -13,6 +13,9 @@ project:
       x:
       y:
       z:
+    bbox:
+      coords: []
+      s2hash:  
     points:
     - x:
       y:
