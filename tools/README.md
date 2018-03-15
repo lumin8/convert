@@ -1,44 +1,70 @@
-# csv2json.py
-Converts a csv to unity json
+# Overview
+It's all about the data.
 
-`python xyz2json.py /some/file.csv`
+Currently, the DeepAR project uses:
+- json  for points, surfaces (Digital Elevation Models 'DEM'), lines?
+- raw   for surfaces (in progress)
 
-- requires a corresponding yml file that maps headers to x, y, z world axis, even if columns in the csv are actually named x, y and z
-- defines a geometry type of 
--- points
--- lines
--- polygons
+### X Y Z ... world vs unity axis
+When describing position on/in the earth,
+X refers to *easting* (how far east/west you are from the Prime Meridian)
+Y refers to *northing* (how far north/south you are from the Equator)
+Z refers to *elevation* (how far above/below the ground)
 
-# tif2json.py
-Converts a geotif to a unity json 'cloud of surface points'
+When describing position on/in unity,
+X refers to *easting*
+Z refers to *northing*
+Y refers to *elevation*
 
-`python tif2json.py /some/file.tif`
+Take careful note of the Y/Z switch!!
 
-- requires a corresponding yml file that maps spatial reference system (srs) of original tif
-- converts to 3857 (temp file, removed after processing .raw file)
+### Spatial Reference System 'SRS' (also called 'ESPG')
 
-# tif2raw.py
-Converts a geotif to a .RAW file for unity import
+Clients should ubiquitously use the data in EPSG:3857 format
+- standardize all data coming in / out of the platform
+- Google, Bing, the rest of the world ises this projection
+- easy to convert server-side
 
-`python tif2raw.py /some/file.tif`
+VERY important information about EPSG: 3857
+- any points on the earth WEST of the Prime Meridian (England) are _negative_
+- any points south of the equater are _negative_
 
-- requires a corresponding yml file that maps spatial reference system (srs) of original tif
-- converts to 3857 (temp file, removed after processing .raw file)
 
-# unity json format 
-```
-{
-  "points": [
-    {
-      "x": -14615548,
-      "y": 7772618,
-      "z": 1298,
-      "foo": ...
-      "bar" : ...
-    }
-  ]
-}
-```
+# Tools
+Several scripts are written in python (quick and dirty) to facilitate the conversion of data for the unity platform.  These scripts include:
 
-# known TBD
-- json formats exported by this tool are not formatted with \n or spaces!!!
+csv2json.py
+tif2json.py
+tif2raw.py
+
+Visit the /tools directory for detailed information on their use.
+
+# Data
+The provided dataset is of the 'Trek' project in Northern B.C, Canada.  Steep terrain, in meters
+Includes:
+- points (drill hole intercepts)
+- surface 
+    --as json (a cloud of points)
+    --as DEM (in .raw format)
+
+### YML: how DeepAR stores metadata regarding all datasets
+All datasets, when the API is operational, should prescribe a YML file (via use input) that maps the following, of any incoming data:
+-x_field
+-y_field
+-z_field
+-srs
+-meters
+See the yml files in the Trek sample folder for examples
+
+### TBD
+- load up json data as lines
+- continue testing surfaces as json point clouds (see *heightmap* in the Trek sample data)
+- build up attributes for use in the colorizing of the featuresi
+- extend the YML files to include username/id, date, etc metadata
+- add an azimuth to points, if they have it, so they can be made into cylinders
+
+### References
+How to use convert and use RAW elevation models in Unity:
+https://alastaira.wordpress.com/2013/11/12/importing-dem-terrain-heightmaps-for-unity-using-gdal/
+
+

@@ -1,0 +1,8 @@
+dem:
+    usa: '/data/dem/usa.vrt'
+    world: 'data/dem/world.vrt'
+
+pytools:
+    csv2: '../csv2json.py'
+    tiff2: '../tif2json.py'
+    2raw: '../tif2raw.py'

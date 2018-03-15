@@ -1,0 +1,28 @@
+---
+projects:
+- datasets:
+  - points:
+    - x:
+      y:
+      z:
+      attributes: 
+      - key:
+        value:
+  - lines:
+    - id:
+      points: 
+      - x:
+        y:
+        z:
+        attributes:
+        - key:
+          value:
+  - shapes:
+    - id: 
+      points: 
+      - x:
+        y:
+        z:
+        attributes:
+        - key:
+          value:

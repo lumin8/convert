@@ -1,0 +1,16 @@
+datasetname:     #REQUIRED underscores no spaces
+    x_field: ""  #REQUIRED IF CSV; field name of incoming x values
+    y_field: ""  #REQUIRED IF CSV; field name of incoming y values
+    z_field: ""  #REQUIRED IF CSV OK BLANK; field name of incoming elevation values (if not set, will default to DEM)
+    srs:         #REQUIRED 4-digit code that represents the incoming data coords (eg. '4326' or '3857')
+    geom:	 #REQUIRED [points, lines, shapes]
+    units:	 #REQUIRED [meters, feet]
+    x_center:    #this will be calculated by the DATA API
+    y_center:    #this will be calculated by the DATA API
+    z_center:    #this will be calculated by the DATA API
+
+
+dataset_options:
+    - csv
+    - shp
+    - dxf        #tbd
