@@ -19,10 +19,8 @@
           "y": null,
           "z": null
         },
-        "bbox": {
-          "coords": [],
-          "s2hash": null
-        },
+        "bbox": null,
+        "s2hash": null,
         "points": [
           {
             "x": null,

@@ -14,6 +14,7 @@ import (
     "os"
     "path/filepath"
     "gopkg.in/yaml.v2"
+    "github.com/golang/geo"
 )
 
 
@@ -80,6 +81,21 @@ func nullHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
+    start := time.Now()
+
+    s := strings.Split(r, "/")
+    process := s[1]
+
+    c := exec.Command(process, args)
+    out, err := c.Output()
+    check(err)
+
+    io.Copy(w, out)
+    log.Println("csv count",counter.Get("csv"),"ms",int64(time.Since(start).Seconds()*1e3))
+}
+
+
+func demHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
     s := strings.Split(r, "/")

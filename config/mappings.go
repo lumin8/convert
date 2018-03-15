@@ -60,7 +60,7 @@ type Pytools struct {
     DxfConv string `yaml:"dxf"`
 }
 
-type DemFiles struct {
+type Demfiles struct {
     Usa string `yaml:"usa"`
     World string `yaml:"world"`
 }
