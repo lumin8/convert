@@ -2,74 +2,12 @@
   "project": {
     "id": null,
     "dem": {
-      "id": null,
-      "points": [
-        {
-          "x": null,
-          "y": null,
-          "z": null
-        }
-      ]
+      "url": null
     },
     "datasets": [
       {
         "id": null,
-        "center": {
-          "x": null,
-          "y": null,
-          "z": null
-        },
-        "bbox": null,
-        "s2hash": null,
-        "points": [
-          {
-            "x": null,
-            "y": null,
-            "z": null,
-            "attributes": [
-              {
-                "key": null,
-                "value": null
-              }
-            ]
-          }
-        ],
-        "lines": [
-          {
-            "id": null,
-            "points": [
-              {
-                "x": null,
-                "y": null,
-                "z": null,
-                "attributes": [
-                  {
-                    "key": null,
-                    "value": null
-                  }
-                ]
-              }
-            ]
-          }
-        ],
-        "shapes": [
-          {
-            "id": null,
-            "points": [
-              {
-                "x": null,
-                "y": null,
-                "z": null,
-                "attributes": [
-                  {
-                    "key": null,
-                    "value": null
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "url": null
       }
     ]
   }

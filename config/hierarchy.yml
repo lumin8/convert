@@ -2,41 +2,7 @@
 project:
   id:
   dem:
-    id:
-    points:
-    - x:
-      y:
-      z:
+    url:
   datasets:
   - id:
-    center:
-      x:
-      y:
-      z:
-    bbox:
-    s2hash:  
-    points:
-    - x:
-      y:
-      z:
-      attributes: 
-      - key:
-        value:
-    lines:
-    - id:
-      points: 
-      - x:
-        y:
-        z:
-        attributes:
-        - key:
-          value:
-    shapes:
-    - id: 
-      attributes:
-      - key:
-        value:
-      points: 
-      - x:
-        y:
-        z:
+    url:
