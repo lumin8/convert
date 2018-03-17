@@ -10,6 +10,7 @@ import (
     "log"
     "encoding/json"
     "time"
+    "testing"
     "math"
     "os"
     "path/filepath"
@@ -17,6 +18,13 @@ import (
     "github.com/golang/geo"
 )
 
+
+func TestSum(t *testing.T) {
+    total := Sum(5, 5)
+    if total != 10 {
+       t.Errorf("Sum was incorrect, got: %d, want: %d.", total, 10)
+    }
+}
 
 const (
     BaseUrl = "http://localhost:8000"
@@ -48,6 +56,13 @@ var counter = single{
 }
 
 
+func check(e error) {
+    if e != nil {
+      log.Println(err)
+    }
+}
+
+
 func main() {
     BaseDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 
@@ -62,16 +77,9 @@ func main() {
     }
 
     m.HandleFunc("/data/", dataHandler)
-    m.HandleFunc("/dem/", nullHandler)
+    m.HandleFunc("/dem/", demHandler)
     log.Println("Listening on " + ListeningPort)
     proxy.ListenAndServe()
-}
-
-
-func check(e error) {
-    if e != nil {
-      log.Println(err)
-    }
 }
 
 
@@ -91,7 +99,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     check(err)
 
     io.Copy(w, out)
-    log.Println("csv count",counter.Get("csv"),"ms",int64(time.Since(start).Seconds()*1e3))
+    log.Println("dataset count",counter.Get(process),"ms",int64(time.Since(start).Seconds()*1e3))
 }
 
 
@@ -106,7 +114,7 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
     check(err)
 
     io.Copy(w, out)
-    log.Println("csv count",counter.Get("csv"),"ms",int64(time.Since(start).Seconds()*1e3))
+    log.Println("dem count",counter.Get(process),"ms",int64(time.Since(start).Seconds()*1e3))
 }
 
 
