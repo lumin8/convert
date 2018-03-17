@@ -9,5 +9,5 @@ dataset:
     srs:          #REQUIRED 4-digit code that represents the incoming data coords (eg. '4326' or '3857')
     geom:	  #REQUIRED [points, lines, shapes]
     units:	  #REQUIRED [meters, feet]
-    format:       #csv, shp  tbd: dxf
+    format:       #REQUIRED csv, shp  tbd: dxf
     data:         #REQUIRED

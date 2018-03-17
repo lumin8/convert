@@ -1,5 +1,13 @@
 ---
-dataset:
+project:
+  id:
+  dem:
+    id:
+    points:
+    - x:
+      y:
+      z:
+  datasets:
   - id:
     center:
       x:

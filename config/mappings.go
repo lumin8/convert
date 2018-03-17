@@ -17,6 +17,7 @@ type Datasets struct {
     Points []Points
     Lines []Lines
     Shapes []Shapes
+    Format string `json:"format" yaml:"format"`
 }
 
 type Center struct {

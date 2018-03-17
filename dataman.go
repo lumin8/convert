@@ -94,6 +94,14 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     s := strings.Split(r, "/")
     process := s[1]
 
+    var project Project
+
+    err = yaml.Unmarshal(r.body, &project)
+    check(err)
+
+    log.Printf("format: ",project.Dataset.format)
+    return
+
     c := exec.Command(process, args)
     out, err := c.Output()
     check(err)
