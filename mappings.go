@@ -1,24 +1,30 @@
 package main
 
 const (
-    Convert = "tools/convert.py"
+    Convert = "tools/convert.py" //tbd handle csv, shp dem...
     Getdem = "tools/dem.py"
 )
 
-
 type Project struct {
     Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
+    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
+    S2hash string `json:"s2hash" yaml:"s2hash"`
     Dem []Dem
     Datasets []Datasets
 }
 
 type Dem struct {
     Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
+    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
+    S2hash string `json:"s2hash" yaml:"s2hash"`
     Points []Points
 }
 
 type Datasets struct {
     Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Url string `json:"dataurl" yaml:"dataurl"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     Center []Center

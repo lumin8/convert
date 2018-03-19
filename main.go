@@ -2,14 +2,16 @@ package main
 
 import (
     "bytes"
-    "net/http"
-    "sync"
-    "io/ioutil"
-    "io"
-    "log"
     "encoding/json"
-    "time"
+    "io"
+    "io/ioutil"
+    "log"
+    "net/http"
+    "os"
     "os/exec"
+    "sort"
+    "sync"
+    "time"
     "gopkg.in/yaml.v2"
     //"github.com/golang/geo"
 )
@@ -78,22 +80,28 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     check(err)
 
     var dataset Datasets
-    var format string
 
     err = yaml.Unmarshal(ymldata, &dataset)
     check(err)
 
-    thingy := dataset.Url
-    log.Println("url: ",thingy)
+    dataurl := dataset.Url
+    format := dataset.Format
 
-    for _, info := range Datasets {
-      if len(info.Format) > 0 {
-        format = info.Format
-        log.Println("format: ",info.Format)
-      }
+    response, err := http.Get(dataurl)
+    if err != nil {
+        log.Printf("%s", err)
+        os.Exit(1)
+    } else {
+        defer response.Body.Close()
+        contents, err := ioutil.ReadAll(response.Body)
+        if err != nil {
+            log.Printf("%s", err)
+            os.Exit(1)
+        }
+        log.Printf("%s\n", string(contents))
     }
 
-    out, err := exec.Command(Convert, format).Output()
+    out, err := exec.Command(Convert, format, contents).Output()
     check(err)
 
     converted := bytes.NewReader(out)
@@ -110,19 +118,22 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
     check(err)
 
     var project Project
-    var s2hash string
+    var hashes []string
+    var hash string
 
     err = yaml.Unmarshal(ymldata, &project)
     check(err)
 
-    for _, process := range project.Datasets {
-      if len(process.S2hash) > 0 {
-        s2hash = process.S2hash
-        log.Println("format: ",process.S2hash)
+    for _, dataset := range project.Datasets {
+      if len(dataset.S2hash) > 0 {
+        hashes = append(hashes, dataset.S2hash)
       }
     }
 
-    out, err := exec.Command(Getdem, s2hash).Output()
+    sort.Strings(hashes)
+    hash = hashes[0]
+
+    out, err := exec.Command(Getdem, hash).Output()
     check(err)
 
     dem := bytes.NewReader(out)
