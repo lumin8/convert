@@ -10,4 +10,4 @@ dataset:
     geom:	  #REQUIRED [points, lines, shapes]
     units:	  #REQUIRED [meters, feet]
     format:       #REQUIRED csv, shp  tbd: dxf
-    data:         #REQUIRED
+    dataurl:      #REQUIRED

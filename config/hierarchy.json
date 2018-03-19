@@ -1,14 +1,24 @@
 {
-  "project": {
-    "id": null,
-    "dem": {
-      "url": null
-    },
-    "datasets": [
-      {
+  "projects": [
+    {
+      "id": null,
+      "name": null,
+      "lastUpdated": null,
+      "s2hash": null,
+      "dem": {
         "id": null,
+        "name": null,
+        "lastUpdated": null,
         "url": null
-      }
-    ]
-  }
+      },
+      "datasets": [
+        {
+          "id": null,
+          "name": null,
+          "lastUpdated": null,
+          "url": null
+        }
+      ]
+    }
+  ]
 }

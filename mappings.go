@@ -19,6 +19,8 @@ type Dem struct {
 
 type Datasets struct {
     Id string `json:"id" yaml:"id"`
+    Url string `json:"dataurl" yaml:"dataurl"`
+    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     Center []Center
     Bbox string `json:"bbox" yaml:"bbox"`
     S2hash string `json:"id" yaml:"id"`

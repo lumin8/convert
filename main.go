@@ -77,13 +77,16 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     ymldata, err := ioutil.ReadAll(r.Body)
     check(err)
 
-    var project Project
+    var dataset Datasets
     var format string
 
-    err = yaml.Unmarshal(ymldata, &project)
+    err = yaml.Unmarshal(ymldata, &dataset)
     check(err)
 
-    for _, info := range project.Datasets {
+    thingy := dataset.Url
+    log.Println("url: ",thingy)
+
+    for _, info := range Datasets {
       if len(info.Format) > 0 {
         format = info.Format
         log.Println("format: ",info.Format)

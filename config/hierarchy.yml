@@ -1,8 +1,16 @@
 ---
-project:
-  id:
+projects:
+- id:
+  name:
+  lastUpdated:
+  s2hash:
   dem:
+    id:
+    name:
+    lastUpdated:
     url:
   datasets:
   - id:
+    name:
+    lastUpdated:
     url:
