@@ -1,39 +1,24 @@
 package main
 
 import (
+    "bytes"
     "net/http"
-    "strings"
     "sync"
-    "strconv"
     "io/ioutil"
     "io"
     "log"
     "encoding/json"
     "time"
-    "testing"
-    "math"
-    "os"
-    "path/filepath"
+    "os/exec"
     "gopkg.in/yaml.v2"
-    "github.com/golang/geo"
+    //"github.com/golang/geo"
 )
 
 
-func TestSum(t *testing.T) {
-    total := Sum(5, 5)
-    if total != 10 {
-       t.Errorf("Sum was incorrect, got: %d, want: %d.", total, 10)
-    }
-}
-
 const (
     BaseUrl = "http://localhost:8000"
-    ScriptDir = ""
-    BaseDir = "/data/"
-    DemDir = "/"
     ListeningPort = "8000"
-    Log = "./log"
-    csvConv = "./csv2json.py"
+    apilog = "./apilog"
 )
 
 
@@ -58,14 +43,12 @@ var counter = single{
 
 func check(e error) {
     if e != nil {
-      log.Println(err)
+      log.Println(e)
     }
 }
 
 
 func main() {
-    BaseDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-
     go readCount()
 
     m := http.NewServeMux()
@@ -91,48 +74,87 @@ func nullHandler(w http.ResponseWriter, r *http.Request) {
 func dataHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    s := strings.Split(r, "/")
-    process := s[1]
+    ymldata, err := ioutil.ReadAll(r.Body)
+    check(err)
 
     var project Project
+    var format string
 
-    err = yaml.Unmarshal(r.body, &project)
+    err = yaml.Unmarshal(ymldata, &project)
     check(err)
 
-    log.Printf("format: ",project.Dataset.format)
-    return
+    for _, info := range project.Datasets {
+      if len(info.Format) > 0 {
+        format = info.Format
+        log.Println("format: ",info.Format)
+      }
+    }
 
-    c := exec.Command(process, args)
-    out, err := c.Output()
+    out, err := exec.Command(Convert, format).Output()
     check(err)
 
-    io.Copy(w, out)
-    log.Println("dataset count",counter.Get(process),"ms",int64(time.Since(start).Seconds()*1e3))
+    converted := bytes.NewReader(out)
+
+    io.Copy(w, converted)
+    log.Println("dataset count",counter.Get("csv"),"ms",int64(time.Since(start).Seconds()*1e3))
 }
 
 
 func demHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    s := strings.Split(r, "/")
-    process := s[1]
-
-    c := exec.Command(process, args)
-    out, err := c.Output()
+    ymldata, err := ioutil.ReadAll(r.Body)
     check(err)
 
-    io.Copy(w, out)
-    log.Println("dem count",counter.Get(process),"ms",int64(time.Since(start).Seconds()*1e3))
+    var project Project
+    var s2hash string
+
+    err = yaml.Unmarshal(ymldata, &project)
+    check(err)
+
+    for _, process := range project.Datasets {
+      if len(process.S2hash) > 0 {
+        s2hash = process.S2hash
+        log.Println("format: ",process.S2hash)
+      }
+    }
+
+    out, err := exec.Command(Getdem, s2hash).Output()
+    check(err)
+
+    dem := bytes.NewReader(out)
+
+    io.Copy(w, dem)
+    log.Println("dem count",counter.Get("dem"),"ms",int64(time.Since(start).Seconds()*1e3))
 }
 
+func (s *single) Get(key string) int64 {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return s.values[key]
+}
+
+func (s *single) Set(key string, newValue int64) int64 {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.values[key] = newValue
+    return s.values[key]
+}
+
+func (s *single) Incr(key string) int64 {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.values[key]++
+    return s.values[key]
+}
 
 func readCount() {
-    read, err := ioutil.ReadFile(log)
+    read, err := ioutil.ReadFile(apilog)
     if err != nil {
       log.Println(err)
       return
     }
-    count := tileCount{}
+    count := Requests{}
     jerr := json.Unmarshal([]byte(read), &count)
 
     if jerr != nil {
@@ -167,7 +189,7 @@ func readCount() {
 
 
 func writeCount() {
-    count := tileCount{}
+    count := Requests{}
     count.Shp = counter.Get("shp")
     count.Dem = counter.Get("dem")
     count.Csv = counter.Get("csv")
@@ -178,7 +200,7 @@ func writeCount() {
       log.Println(err)
     }
 
-    jerr := ioutil.WriteFile(Log, writeMe, 0644)
+    jerr := ioutil.WriteFile(apilog, writeMe, 0644)
     if jerr != nil {
       log.Println(err)
     }

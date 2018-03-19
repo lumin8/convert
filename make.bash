@@ -100,7 +100,8 @@ function build ()
 
     logit "Building for ${os}:${arch}"
     run_ignerr "go get"
-    run "go build -o dataman${file_ext} *.go"
+    # run "go build -o dataman${file_ext} *.go"
+    run "go build -o *.go"
     local rc=$?
     logit "Building for ${os}:${arch}: done"
 

@@ -6,12 +6,11 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-        "../config/mappings"
 	"gopkg.in/yaml.v2"
 )
 
 const (
-    testyaml = "trek/trek_drilldata.yml"
+    testyaml = "tests/trek/trek_drilldata.yml"
 )
 
 

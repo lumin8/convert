@@ -1,3 +1,11 @@
+package main
+
+const (
+    Convert = "tools/convert.py"
+    Getdem = "tools/dem.py"
+)
+
+
 type Project struct {
     Id string `json:"id" yaml:"id"`
     Dem []Dem
@@ -27,6 +35,20 @@ type Center struct {
 }
 
 type Points struct {
+    X int `json:"x" yaml:"x"`
+    Y int `json:"y" yaml:"y"`
+    Z int `json:"z" yaml:"z"`
+    Attributes []Attributes
+}
+
+type Lines struct {
+    X int `json:"x" yaml:"x"`
+    Y int `json:"y" yaml:"y"`
+    Z int `json:"z" yaml:"z"`
+    Attributes []Attributes
+}
+
+type Shapes struct {
     X int `json:"x" yaml:"x"`
     Y int `json:"y" yaml:"y"`
     Z int `json:"z" yaml:"z"`
