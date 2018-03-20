@@ -1,44 +1,74 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
-	"log"
+	"bytes"
+        "fmt"
+	"io"
+        "log"
+        "mime/multipart"
 	"net/http"
 	"net/http/httptest"
+        "path/filepath"
 	"gopkg.in/yaml.v2"
 )
 
 const (
     testyaml = "tests/trek/trek_drilldata.yml"
+    testdata = "tests/trek/trek_drilldata.csv"
+    BaseUrl = "http://localhost:8000/data"
 )
 
 
-func post(testdata []string) {
-    file := ioutil.ReadFile(testdata)
+func newfileConversionRequest(uri string, params map[string]string, paramName, path string) (*http.Request, error) {
+    file, err := os.Open(path)
+    if err != nil {
+      return nil, err
+    }
+    defer file.Close()
 
-    handler := func(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, file)
+    body := &bytes.Buffer{}
+    writer := multipart.NewWriter(body)
+    part, err := writer.CreateFormFile(paramName, filepath.Base(path))
+    if err != nil {
+      return nil, err
+    }
+    _, err = io.Copy(part, file)
+
+    for key, val := range params {
+      _ = writer.WriteField(key, val)
+    }
+    err = writer.Close()
+    if err != nil {
+      return nil, err
     }
 
-    req := httptest.NewRequest("GET", "http://localhost:8000/data", nil)
-    w := httptest.NewRecorder()
-    handler(w, req)
-
-    resp := w.Result()
-    body, _ := ioutil.ReadAll(resp.Body)
-
-    fmt.Println(resp.StatusCode)
-    fmt.Println(resp.Header.Get("Content-Type"))
-    fmt.Println(string(body))
-}
-
-
-func Sum(x int, y int) int {
-    return x + y
+    req, err := http.NewRequest("POST", uri, body)
+    req.Header.Set("Content-Type", writer.FormDataContentType())
+    return req, err
 }
 
 
 func main() {
-    post(testyaml)
+    extraParams := map[string]string{
+      "info":  testyaml,
+    }
+    request, err := newfileConversionRequest(BaseUrl, extraParams, "file", testdata)
+    if err != nil {
+      log.Fatal(err)
+    }
+    client := &http.Client{}
+    resp, err := client.Do(request)
+    if err != nil {
+      log.Fatal(err)
+    } else {
+      body := &bytes.Buffer{}
+      _, err := body.ReadFrom(resp.Body)
+      if err != nil {
+          log.Fatal(err)
+      }
+      resp.Body.Close()
+        fmt.Println(resp.StatusCode)
+        fmt.Println(resp.Header)
+        fmt.Println(body)
+    }
 }

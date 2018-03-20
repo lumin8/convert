@@ -5,7 +5,7 @@ const (
     Getdem = "tools/dem.py"
 )
 
-type Project struct {
+type Projects struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
@@ -30,6 +30,9 @@ type Datasets struct {
     Center []Center
     Bbox string `json:"bbox" yaml:"bbox"`
     S2hash string `json:"id" yaml:"id"`
+    Xfield string `json:"xfield" yaml:"xfield"`
+    Yfield string `json:"yfield" yaml:"yfield"`
+    Zfield string `json:"zfield" yaml:"zfield"`
     Points []Points
     Lines []Lines
     Shapes []Shapes
