@@ -7,9 +7,9 @@ import (
         "log"
         "mime/multipart"
 	"net/http"
-	"net/http/httptest"
+	//"net/http/httptest"
+        "os"
         "path/filepath"
-	"gopkg.in/yaml.v2"
 )
 
 const (
