@@ -75,6 +75,8 @@ func nullHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
+    log.Println("woohoo, got a request!")
+
     var indataset Datasets
     var converted []byte
 
@@ -237,6 +239,7 @@ func readCount() {
       log.Println(err)
       return
     }
+
     count := Requests{}
     jerr := json.Unmarshal([]byte(read), &count)
 
