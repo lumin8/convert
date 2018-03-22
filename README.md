@@ -4,6 +4,8 @@ This api takes http POST of csv (tbd shp and dxf), and returns json or a struct 
 
 There are currently two principle pieces: main.go and mappings.go, which hold the business end and the struct mappings end of the code project, respectively.
 
+Service already running?  just hit `http://mapp.life/data` with the INBOUND multipart file (see below).
+
 To use:
 - download this repo
 - ensure port 8000 is open (or change the config of the port in the const of main.go)
