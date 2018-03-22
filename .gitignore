@@ -1,3 +1,6 @@
 /sample/tmp/
 tmp/
 *.swp
+main
+mappings
+out.json

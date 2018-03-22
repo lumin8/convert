@@ -3,12 +3,9 @@ package main
 import (
 	"bytes"
         "fmt"
-	"io"
         "io/ioutil"
-        "log"
         "mime/multipart"
 	"net/http"
-	//"net/http/httptest"
         "os"
         "path/filepath"
 )
@@ -16,67 +13,83 @@ import (
 const (
     testjson = "tests/trek/trek_drilldata.json"
     testdata = "tests/trek/trek_drilldata.csv"
-    BaseUrl = "http://localhost:8000/data"
+    testurl = "https://mapp.life:8000/data"
 )
 
-
-func newfileConversionRequest(uri string, params map[string]string, paramName, path string) (*http.Request, error) {
-    file, err := os.Open(path)
+func check (err error) {
     if err != nil {
-      return nil, err
+      fmt.Printf("Damn, there's an error: %s\n",err)
     }
-    defer file.Close()
+}
+
+
+func newfileConversionRequest(uri string, params map[string]string) (*http.Request, error) {
 
     body := &bytes.Buffer{}
     writer := multipart.NewWriter(body)
-    part, err := writer.CreateFormFile(paramName, filepath.Base(path))
+
+    for k, v := range params {
+      switch k {
+        case "info" :
+          file, err := os.Open(v)
+          check(err)
+          stuff, err := ioutil.ReadAll(file)
+          check(err)
+          part, err := writer.CreateFormFile(k, filepath.Base(v))
+          check(err)
+          part.Write(stuff)
+          fmt.Printf("info written\n")
+        case "file" :
+          file, err := os.Open(v)
+          check(err)
+          stuff, err := ioutil.ReadAll(file)
+          check(err)
+          part, err := writer.CreateFormFile(k, filepath.Base(v))
+          check(err)
+          part.Write(stuff)
+          fmt.Printf("data written\n")
+      }
+    }
+
+    err := writer.Close()
     if err != nil {
       return nil, err
     }
-    _, err = io.Copy(part, file)
-
-    for key, val := range params {
-      fmt.Printf(key, val)
-      _ = writer.WriteField(key, val)
-    }
-    err = writer.Close()
-    if err != nil {
-      return nil, err
-    }
-
-    fmt.Printf(uri,body)
 
     req, err := http.NewRequest("POST", uri, body)
+    check(err)
+
     req.Header.Set("Content-Type", writer.FormDataContentType())
+
     return req, err
 }
 
 
 func main() {
-    test, _ := ioutil.ReadFile(testjson)
-
-    info := string(test)
 
     extraParams := map[string]string{
-      "info":  info,
+      "info":  testjson,
+      "file":  testdata,
     }
-    request, err := newfileConversionRequest(BaseUrl, extraParams, "file", testdata)
+
+    request, err := newfileConversionRequest(testurl, extraParams)
     if err != nil {
-      log.Fatal(err)
+      fmt.Printf("FUNC returns an error: %s\n",err)
     }
     client := &http.Client{}
+    fmt.Printf("Request Headers: %s\n",request.Header)
     resp, err := client.Do(request)
     if err != nil {
-      log.Fatal(err)
+      fmt.Printf("Request returns an error: %s\n",err)
     } else {
       body := &bytes.Buffer{}
       _, err := body.ReadFrom(resp.Body)
       if err != nil {
-          log.Fatal(err)
+          fmt.Printf("Body READ returns an error: %s\n",err)
       }
       resp.Body.Close()
-        fmt.Println(resp.StatusCode)
-        fmt.Println(resp.Header)
-        fmt.Println(body)
+        fmt.Printf("Response Status: %s\n",resp.StatusCode)
+        fmt.Printf("Response Headers: %s\n",resp.Header)
+        //fmt.Printf("Response Body: %s\n",body)
     }
 }

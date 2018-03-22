@@ -4,10 +4,14 @@ import (
     "bytes"
     "encoding/csv"
     "encoding/json"
+    "fmt"
     "io"
     "io/ioutil"
     "log"
+    "mime"
+    "mime/multipart"
     "net/http"
+    //"os"
     "os/exec"
     "sort"
     "strconv"
@@ -44,10 +48,12 @@ var counter = single{
 }
 
 
-func check(e error) {
+func check(e error) bool{
     if e != nil {
       log.Println(e)
+      return false
     }
+    return true
 }
 
 
@@ -59,11 +65,12 @@ func main() {
     proxy := &http.Server{
       Addr:":"+ListeningPort,
       Handler: m,
-      ReadTimeout: 0 * time.Second,
+      MaxHeaderBytes: 30000000,
+      ReadTimeout: 10 * time.Second,
     }
 
-    m.HandleFunc("/data/", dataHandler)
-    m.HandleFunc("/dem/", demHandler)
+    m.HandleFunc("/data", dataHandler)
+    m.HandleFunc("/dem", demHandler)
     log.Println("Listening on " + ListeningPort)
     proxy.ListenAndServe()
 }
@@ -75,17 +82,18 @@ func nullHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
+    start := time.Now()
     log.Println("woohoo, got a request!")
 
-    var indataset Datasets
-    var converted []byte
+    _, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+    check(err)
 
-    start := time.Now()
+    reader := multipart.NewReader(r.Body, params["boundary"])
+
+    var indataset Input
+    var converted []byte
     var data []byte
     var info []byte
-
-    reader, err := r.MultipartReader()
-    check(err)
 
     for {
       part, err := reader.NextPart()
@@ -97,9 +105,12 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
         case "info" :
           info, err = ioutil.ReadAll(part)
           check(err)
+          fmt.Printf("%s\n",info)
+          fmt.Printf("read from info!\n")
         case "file" :
           data, err = ioutil.ReadAll(part)
           check(err)
+          fmt.Printf("read from data!\n")
       }
     }
 
@@ -112,17 +123,18 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
       case "csv" :
         converted, err = CsvHandler(indataset, data)
         check(err)
-      //case "shp": 
+      //TBD case "shp": 
         //outdataset, err = ShpHandler(indataset, contents)
-      //case "dxf": 
+      //TBD case "dxf": 
         //outdataset, err = DxfHandler(indataset, contents)
       default :
         converted = []byte("Sorry, things didn't work out.  Is the format supported?")
     }
 
-    log.Printf("%s\n", converted)
-    log.Println("total dataset round trip was ",int64(time.Since(start).Seconds()*1e3),"ms")
+    ioutil.WriteFile("tests/out.json", converted, 0644)
     w.Write(converted)
+
+    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()),"s")
 }
 
 
@@ -155,11 +167,11 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 
     io.Copy(w, dem)
     counter.Incr("dem")
-    log.Println("dem count",counter.Get("dem"),"ms",int64(time.Since(start).Seconds()*1e3))
+    log.Println("dems processed",counter.Get("dem"),", time:",int64(time.Since(start).Seconds()),"s")
 }
 
 
-func CsvHandler(indataset Datasets, contents []byte) (converted []byte, err error) {
+func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) {
     start := time.Now()
     s := bytes.NewReader(contents)
 
@@ -171,13 +183,13 @@ func CsvHandler(indataset Datasets, contents []byte) (converted []byte, err erro
     zfield := indataset.Zfield
 
     var outdataset Datasets
-    var point Points
     var headers map[int]string
     headers = make(map[int]string)
 
     var attributes Attributes
 
     for i, record := range raw {
+      var point Points
       switch i {
         case 0 :
           for i, header := range record {
@@ -208,7 +220,7 @@ func CsvHandler(indataset Datasets, contents []byte) (converted []byte, err erro
 
     converted, err = json.Marshal(outdataset)
     counter.Incr("csv")
-    log.Println("dataset count",counter.Get("csv"),"ms",int64(time.Since(start).Seconds()*1e3))
+    log.Println("csv's processed:",counter.Get("csv"),", time:",int64(time.Since(start).Seconds()),"s")
     return converted, err
 }
 
@@ -255,13 +267,13 @@ func readCount() {
     counter.Set("shp",count.Shp)
     counter.Set("dem",count.Dem)
     counter.Set("csv",count.Csv)
-    counter.Set("dxf",count.Csv)
+    counter.Set("dxf",count.Dxf)
     log.Println("starting shp count:",counter.Get("shp"))
     log.Println("starting dem count:",counter.Get("dem"))
     log.Println("starting csv count:",counter.Get("csv"))
     log.Println("starting dxf count:",counter.Get("dxf"))
 
-    expiryTime := int64(600)
+    expiryTime := int64(6)
 
     writeTicker := time.NewTicker(time.Second * time.Duration(expiryTime))
 
