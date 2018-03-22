@@ -1,4 +1,4 @@
-#Data API
+# Data API
 
 This api takes http POST of csv (tbd shp and dxf), and returns json or a struct used to build Unity objects for the Deep AR project.
 
@@ -13,23 +13,23 @@ To use:
 - > go run main.go mappings.go  //or
 - > ./make.bash  //compiles the program so it may be run simply by typing ./main
 
-##Current Structure of INBOUND Data
+## Current Structure of INBOUND Data
 -Multipart File
 
-####"info" : []byte of info array
+#### "info" : []byte of info array
 https://github.com/lumin8/deepar-data/blob/master/config/input.json
 
-####"file" : []byte of file
+#### "file" : []byte of file
 
 
-##Current Structure of OUTBOUND Data
+## Current Structure of OUTBOUND Data
 -Singlepart File
 
-####Json String
+#### Json String
 https://github.com/lumin8/deepar-data/blob/master/config/output.json
 
 
-##Tests
+## Tests
 One test currently exists as 'data_test.go'.  This can be run from any machine, it bundles up a CSV from tests/trek/ and the json array of info (above), hits the endpoint, and receives the data back.  Currently, a 200KB csv and a nominal json expand **3x** in the current arrangement for datasets (config/output.json)... this is not ideal, further testing may indicate a need to compress the verbosity of the output.json.
 
 ## TBD
