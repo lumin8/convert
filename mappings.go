@@ -72,11 +72,11 @@ type Attributes struct {
 }
 
 type Input struct {
-    Id string `json:"dataset" yaml:"dataset"`
+    Id int `json:"id" yaml:"id"`
     Xfield string `json:"xfield" yaml:"xfield"`
     Yfield string `json:"yfield" yaml:"yfield"`
     Zfield string `json:"zfield" yaml:"zfield"`
-    Srs string `json:"srs" yaml:"srs"`
+    Srs int `json:"srs" yaml:"srs"`
     Units string `json:"units" yaml:"units"`
     Format string `json:"format" yaml:"format"`
 }
