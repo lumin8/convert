@@ -1,15 +1,13 @@
 {
-  "dataset": {
-    "id": null,
-    "owner": null,
-    "organization": null,
-    "xfield": null,
-    "yfield": null,
-    "zfield": null,
-    "srs": null,
-    "geom": null,
-    "units": null,
-    "format": null,
-    "url": null
-  }
+  "id": null,
+  "owner": null,
+  "organization": null,
+  "xfield": null,
+  "yfield": null,
+  "zfield": null,
+  "srs": null,
+  "geom": null,
+  "units": null,
+  "format": null,
+  "url": null
 }

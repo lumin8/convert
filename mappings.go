@@ -73,14 +73,10 @@ type Attributes struct {
 
 type Input struct {
     Id string `json:"dataset" yaml:"dataset"`
-    Name string `json:"name" yaml:"name"`
-    Owner string `json:"owner" yaml:"owner"`
-    Organization string `json:"organization" yaml:"organization"`
     Xfield string `json:"xfield" yaml:"xfield"`
     Yfield string `json:"yfield" yaml:"yfield"`
     Zfield string `json:"zfield" yaml:"zfield"`
     Srs string `json:"srs" yaml:"srs"`
-    Geom string `json:"geom" yaml:"geom"`
     Units string `json:"units" yaml:"units"`
     Format string `json:"format" yaml:"format"`
 }
