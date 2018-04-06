@@ -1,1 +1,4 @@
 2018/03/22 17:10:44 Listening on 8000
+dataman.go:20:5: cannot find package "gopkg.in/yaml.v2" in any of:
+	/usr/lib/go-1.6/src/gopkg.in/yaml.v2 (from $GOROOT)
+	($GOPATH not set)

@@ -4,3 +4,4 @@ tmp/
 main
 mappings
 out.json
+nohup*
