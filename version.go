@@ -1,5 +1,5 @@
 package main
-const BUILDTIMESTAMP = 1522222707
+const BUILDTIMESTAMP = 1523110009
 const BUILDUSER      = "scott"
 const BUILDHOST      = "karterra-sandbox"
-const BUILDGITSHA    = "a0d3565"
+const BUILDGITSHA    = "2baed0c"

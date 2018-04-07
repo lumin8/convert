@@ -10,24 +10,36 @@ dataset:
       z:
     bbox:
     s2hash:  
-    points:
+    dem:
     - x:
       y:
       z:
       attributes: 
       - key:
         value:
-    lines:
+    points:
     - id:
-      points: 
+      name:
+      points:
       - x:
         y:
         z:
         attributes:
         - key:
           value:
+    lines:
+    - id:
+      name:
+      attributes:
+      - key:
+        value:
+      points: 
+      - x:
+        y:
+        z:
     shapes:
-    - id: 
+    - id:
+      name:
       attributes:
       - key:
         value:

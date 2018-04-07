@@ -1,4 +1,4 @@
-package dataman
+package main
 
 const (
     Convert = "tools/convert.py" //tbd handle csv, shp dem...
@@ -19,7 +19,7 @@ type Dem struct {
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     S2hash string `json:"s2hash" yaml:"s2hash"`
-    Points []Points
+    Points []DemPoints
 }
 
 type Datasets struct {
@@ -40,29 +40,35 @@ type Datasets struct {
 }
 
 type Center struct {
-    X int `json:"x" yaml:"x"`
-    Y int `json:"y" yaml:"y"`
-    Z int `json:"z" yaml:"z"`
+    X float64 `json:"x" yaml:"x"`
+    Y float64 `json:"y" yaml:"y"`
+    Z float64 `json:"z" yaml:"z"`
+}
+
+type DemPoints struct {
+    X float64 `json:"x" yaml:"x"`
+    Y float64 `json:"y" yaml:"y"`
+    Z float64 `json:"z" yaml:"z"`
 }
 
 type Points struct {
-    X int `json:"x" yaml:"x"`
-    Y int `json:"y" yaml:"y"`
-    Z int `json:"z" yaml:"z"`
+    X float64 `json:"x" yaml:"x"`
+    Y float64 `json:"y" yaml:"y"`
+    Z float64 `json:"z" yaml:"z"`
     Attributes []Attributes
 }
 
 type Lines struct {
-    X int `json:"x" yaml:"x"`
-    Y int `json:"y" yaml:"y"`
-    Z int `json:"z" yaml:"z"`
+    X float64 `json:"x" yaml:"x"`
+    Y float64 `json:"y" yaml:"y"`
+    Z float64 `json:"z" yaml:"z"`
     Attributes []Attributes
 }
 
 type Shapes struct {
-    X int `json:"x" yaml:"x"`
-    Y int `json:"y" yaml:"y"`
-    Z int `json:"z" yaml:"z"`
+    X float64 `json:"x" yaml:"x"`
+    Y float64 `json:"y" yaml:"y"`
+    Z float64 `json:"z" yaml:"z"`
     Attributes []Attributes
 }
 
@@ -81,18 +87,4 @@ type Input struct {
     Format string `json:"format" yaml:"format"`
 }
 
-type Tools struct {
-    Pytools []Pytools
-    Demfiles []Demfiles
-}
 
-type Pytools struct {
-    CsvConv string `json:"csv" yaml:"csv"`
-    ShpConv string `json:"shp" yaml:"shp"`
-    DxfConv string `json:"dxf" yaml:"dxf"`
-}
-
-type Demfiles struct {
-    Usa string `json:"usa" yaml:"usa"`
-    World string `json:"world" yaml:"world"`
-}

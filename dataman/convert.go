@@ -1,4 +1,4 @@
-package dataman
+package main
 
 import (
     "bytes"
@@ -11,14 +11,9 @@ import (
     "mime"
     "mime/multipart"
     "net/http"
-    //"os"
-    "os/exec"
-    "sort"
     "strconv"
-    "sync"
     "time"
     "gopkg.in/yaml.v2"
-    //"github.com/golang/geo"
 )
 
 
@@ -111,9 +106,9 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
         default :
           for i, value := range record {
             switch headers[i] {
-              case "X": point.X, _ = strconv.Atoi(value)
-              case "Y": point.Y, _ = strconv.Atoi(value)
-              case "Z": point.Z, _ = strconv.Atoi(value)
+              case "X": point.X, _ = strconv.ParseFloat(value, 64)
+              case "Y": point.Y, _ = strconv.ParseFloat(value, 64)
+              case "Z": point.Z, _ = strconv.ParseFloat(value, 64)
               default :
                 attributes.Key = headers[i]
                 attributes.Value = value

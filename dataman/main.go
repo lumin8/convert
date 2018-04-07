@@ -1,29 +1,19 @@
-package dataman
+package main
 
 import (
-    "bytes"
-    "encoding/csv"
     "encoding/json"
-    "fmt"
-    "io"
     "io/ioutil"
     "log"
-    "mime"
-    "mime/multipart"
     "net/http"
-    "os/exec"
-    "sort"
-    "strconv"
     "sync"
     "time"
-    "gopkg.in/yaml.v2"
 )
 
 
 const (
     BaseUrl = "http://localhost:8000"
     ListeningPort = "8000"
-    apilog = "./apilog"
+    apilog = "../apilog"
 )
 
 
@@ -157,3 +147,4 @@ func writeCount() {
       log.Println(err)
     }
 }
+

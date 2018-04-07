@@ -118,7 +118,7 @@ function build ()
     fi
 
     logit "Building for ${os}:${arch}"
-    run "go build -o *.go"
+    run "go build -o dataman/*.go"
     local rc=$?
     logit "Building for ${os}:${arch}: done"
 

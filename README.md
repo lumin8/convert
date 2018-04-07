@@ -13,13 +13,21 @@ To use:
 - > go run main.go mappings.go  //or
 - > ./make.bash  //compiles the program so it may be run simply by typing ./main
 
-## Current Structure of INBOUND Data
--Multipart File
 
-#### "info" : []byte of info array
+## DEM endpoint:  serveraddress/dem/?x=&y=&f=
+
+Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], and a format (json), and what comes back will be a DEM in EPSG:3857 approximate 0.06 degrees square surrounding the central xy point.  
+
+#### TBD
+
+## DATA conversion endpoint:  serveraddress/data/  [multipart file]
+
+Hit this enpoint with a multipart file, one is the map of the data (info) the other is the file itself (file) and it'll give back a converted dataset prepared for Unity / DeepAR according to json structure in config/
+
+#### Part 1  "info" []byte of info array
 https://github.com/lumin8/deepar-data/blob/master/config/input.json
 
-#### "file" : []byte of file
+#### Part 2  "file" []byte of file
 
 
 ## Current Structure of OUTBOUND Data
