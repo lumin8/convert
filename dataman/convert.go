@@ -70,7 +70,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
     ioutil.WriteFile("tests/out.json", converted, 0644)
     w.Write(converted)
 
-    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()),"s")
+    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
 }
 
 
@@ -123,7 +123,7 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 
     converted, err = json.Marshal(outdataset)
     counter.Incr("csv")
-    log.Println("csv's processed:",counter.Get("csv"),", time:",int64(time.Since(start).Seconds()),"s")
+    log.Println("csv's processed:",counter.Get("csv"),", time:",int64(time.Since(start).Seconds()*1e3),"ms")
     return converted, err
 }
 

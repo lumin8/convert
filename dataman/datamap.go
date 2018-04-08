@@ -19,7 +19,7 @@ type Dem struct {
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     S2hash string `json:"s2hash" yaml:"s2hash"`
-    Points []DemPoints
+    Points []([]float64)
 }
 
 type Datasets struct {
@@ -46,10 +46,18 @@ type Center struct {
 }
 
 type DemPoints struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Point
 }
+
+type Point struct {
+    Point []float64
+}
+
+//type DemPoints struct {
+//    X float64 `json:"x" yaml:"x"`
+//    Y float64 `json:"y" yaml:"y"`
+//    Z float64 `json:"z" yaml:"z"`
+//}
 
 type Points struct {
     X float64 `json:"x" yaml:"x"`
