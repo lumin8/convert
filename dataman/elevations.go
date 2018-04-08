@@ -22,8 +22,6 @@ const (
 func demHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    log.Println("woohoo, here")
-
     x := r.URL.Query()["x"][0]
     y := r.URL.Query()["y"][0]
     format := "json"
@@ -56,7 +54,7 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     counter.Incr("dem")
-    log.Println("dems processed",counter.Get("dem"),", time:",int64(time.Since(start).Seconds()),"s")
+    log.Println(counter.Get("dem"),"dems processed, time:",int64(time.Since(start).Seconds()*1e3),"ms")
 }
 
 
@@ -72,6 +70,8 @@ func getDem(x string, y string) (data Dem, err error) {
     start := time.Now()
 
     var dem Dem
+
+    //TBD make this more elegant, remove dep on writing files to disk
 
     xint, _ := strconv.ParseFloat(x, 64)
     yint, _ := strconv.ParseFloat(y, 64)
@@ -101,7 +101,7 @@ func getDem(x string, y string) (data Dem, err error) {
     exec.Command("sh", "-c", cmds).Run()
 
     os.Remove(tifin)
-    os.Remove(tifout)
+    //os.Remove(tifout)
 
     xyz, err := os.Open(xyzfile)
     check(err)
@@ -109,21 +109,24 @@ func getDem(x string, y string) (data Dem, err error) {
 
     scanner := bufio.NewScanner(xyz)
     for scanner.Scan() {
-      var point DemPoints
+      //var point Point
       values := strings.Fields(scanner.Text())
-      point.X = toFixed(values[0])
-      point.Y = toFixed(values[1])
-      point.Z = toFixed(values[2])
+      X := str2fixed(values[0])
+      Y := str2fixed(values[1])
+      Z := str2fixed(values[2])
+      point := []float64{X,Y,Z}
       dem.Points = append(dem.Points, point)
     }
 
     xyz.Close()
+    //os.Remove(xyzfile)
 
-    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()),"s")
+    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
     return dem, err
 }
 
-func toFixed(num string) float64 {
+
+func str2fixed(num string) float64 {
     val, _ := strconv.ParseFloat(num,64)
     j := strconv.FormatFloat(val, 'f', 2, 64)
     i, _ := strconv.ParseFloat(j,64)

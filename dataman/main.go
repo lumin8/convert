@@ -5,6 +5,7 @@ import (
     "io/ioutil"
     "log"
     "net/http"
+    "os"
     "sync"
     "time"
 )
@@ -14,6 +15,7 @@ const (
     BaseUrl = "http://localhost:8000"
     ListeningPort = "8000"
     apilog = "../apilog"
+    gopath = "$HOME/go"
 )
 
 
@@ -47,6 +49,7 @@ func check(e error) bool{
 
 func main() {
     go readCount()
+    os.Setenv("GOPATH", gopath)
 
     m := http.NewServeMux()
 
