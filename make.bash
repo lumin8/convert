@@ -23,6 +23,8 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
+export GOPATH=$HOME/go
+
 TRUE=0
 FALSE=1
 
@@ -118,7 +120,7 @@ function build ()
     fi
 
     logit "Building for ${os}:${arch}"
-    run "go build -o dataman/*.go"
+    run "go build dataman/main.go dataman/convert.go dataman/datamap.go dataman/elevations.go"
     local rc=$?
     logit "Building for ${os}:${arch}: done"
 
@@ -133,9 +135,9 @@ function main ()
 
     go get
     make_version
-    build windows amd64
+    #build windows amd64
     build linux amd64
-    build darwin amd64
+    #build darwin amd64
 }
 
 main

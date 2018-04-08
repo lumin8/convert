@@ -36,8 +36,6 @@ func paramCheck(i string, r *http.Request) (string, []byte) {
 func demHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    log.Println("woohoo, here")
-
     x, resp := paramCheck("x", r)
     if resp != nil {
         w.Write(resp)
@@ -80,7 +78,7 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     counter.Incr("dem")
-    log.Println("dems processed",counter.Get("dem"),", time:",int64(time.Since(start).Seconds()),"s")
+    log.Println(counter.Get("dem"),"dems processed, time:",int64(time.Since(start).Seconds()*1e3),"ms")
 }
 
 
@@ -110,6 +108,7 @@ func getDem(x string, y string) (data Dem, err error) {
       return dem, err
     }
 
+    //TBD make this more elegant, remove dep on writing files to disk
     xint, _ := strconv.ParseFloat(x, 64)
     yint, _ := strconv.ParseFloat(y, 64)
     uly := strconv.FormatFloat(yint + 0.03, 'f', -2, 64)
@@ -117,9 +116,9 @@ func getDem(x string, y string) (data Dem, err error) {
     bry := strconv.FormatFloat(yint - 0.03, 'f', -2, 64)
     brx := strconv.FormatFloat(xint + 0.03, 'f', -2, 64)
 
-    tif4326 := "mktemp ../tmp/XXXXXX.tif"
-    tif3857 := "mktemp ../tmp/XXXXXX.tif"
-    xyz3857 := "mktemp ../tmp/XXXXXX.xyz"
+    tif4326 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
+    tif3857 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
+    xyz3857 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.xyz"
 
     mktifin, _ := exec.Command("sh", "-c", tif4326).Output()
     mktifout, _ := exec.Command("sh", "-c", tif3857).Output()
@@ -146,21 +145,24 @@ func getDem(x string, y string) (data Dem, err error) {
 
     scanner := bufio.NewScanner(xyz)
     for scanner.Scan() {
-      var point DemPoints
+      //var point Point
       values := strings.Fields(scanner.Text())
-      point.X = toFixed(values[0])
-      point.Y = toFixed(values[1])
-      point.Z = toFixed(values[2])
+      X := str2fixed(values[0])
+      Y := str2fixed(values[1])
+      Z := str2fixed(values[2])
+      point := []float64{X,Y,Z}
       dem.Points = append(dem.Points, point)
     }
 
     xyz.Close()
+    os.Remove(xyzfile)
 
-    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()),"s")
+    log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
     return dem, err
 }
 
-func toFixed(num string) float64 {
+
+func str2fixed(num string) float64 {
     val, _ := strconv.ParseFloat(num,64)
     j := strconv.FormatFloat(val, 'f', 2, 64)
     i, _ := strconv.ParseFloat(j,64)

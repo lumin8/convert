@@ -5,8 +5,17 @@ import (
     "io/ioutil"
     "log"
     "net/http"
+    "os"
+    "path/filepath"
+    "runtime"
     "sync"
     "time"
+)
+
+
+var (
+    _, b, _, _ = runtime.Caller(0)
+    basepath   = filepath.Dir(b)
 )
 
 
@@ -14,6 +23,7 @@ const (
     BaseUrl = "http://localhost:8000"
     ListeningPort = "8000"
     apilog = "../apilog"
+    gopath = "$HOME/go"
 )
 
 
@@ -62,6 +72,7 @@ func New(text string) error {
 
 func main() {
     go readCount()
+    os.Setenv("GOPATH", gopath)
 
     m := http.NewServeMux()
 
@@ -105,7 +116,8 @@ func (s *single) Incr(key string) int64 {
 }
 
 func readCount() {
-    read, err := ioutil.ReadFile(apilog)
+    path := basepath + "/" + apilog
+    read, err := ioutil.ReadFile(path)
     if err != nil {
       log.Println(err)
       return
