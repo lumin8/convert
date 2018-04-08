@@ -1,6 +1,8 @@
 /sample/tmp/
 tmp/
 *.swp
+*.swo
 main
 mappings
 out.json
+nohup*

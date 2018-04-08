@@ -22,8 +22,9 @@ def convert(tif):
     tifnew = filename[0] + "_3857.tif"
     filebase = basename(filename[0])
 
-    config = yaml.safe_load(open(yml))
-    srs = 'EPSG:' + str(config[filebase]['srs'])
+    #config = yaml.safe_load(open(yml))
+    #srs = 'EPSG:' + str(config[filebase]['srs'])
+    srs = 'EPSG:4326'
 
     try:
 
@@ -43,6 +44,9 @@ def convert(tif):
                 tif,
                 tifnew]
             subprocess.check_output(localoptions, stderr=subprocess.STDOUT)
+
+        #reducesize
+        #gdal_translate -co COMPRESS=LZW -outsize 10% 10% /home/scott/datapi/tests/testdem.tif /home/scott/datapi/tests/testdem_reduced.tif
 
         def toXYZ():
 	    localoptions = [
