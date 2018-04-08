@@ -21,14 +21,18 @@ const (
 
 
 func paramCheck(i string, r *http.Request) (string, []byte) {
+    var str string
+    log.Printf("%s",i)
     val, ok := r.URL.Query()[i]
+    log.Printf("%s",val)
     var resp []byte
     if !ok || len(val) < 1 {
         resp  = []byte("Please provide valid x and y parameters in lat/long decimal degrees.")
+        return str, resp
     }
 
-    str := val[0]
-
+    str = val[0]
+    log.Printf(i, str)
     return str, resp
 }
 
