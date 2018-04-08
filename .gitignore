@@ -1,6 +1,6 @@
 /sample/tmp/
 tmp/
-*.sw
+*.sw*
 main
 mappings
 out.json

@@ -4,6 +4,7 @@ package main
 import (
      "bufio"
      "encoding/json"
+     "errors"
      "log"
      "net/http"
      "os"
@@ -19,13 +20,36 @@ const (
 )
 
 
+func paramCheck(i string, r *http.Request) (string, []byte) {
+    val, ok := r.URL.Query()[i]
+    var resp []byte
+    if !ok || len(val) < 1 {
+        resp  = []byte("Please provide valid x and y parameters in lat/long decimal degrees.")
+    }
+
+    str := val[0]
+
+    return str, resp
+}
+
+
 func demHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    x := r.URL.Query()["x"][0]
-    y := r.URL.Query()["y"][0]
-    format := "json"
-    format = r.URL.Query()["f"][0]
+    x, resp := paramCheck("x", r)
+    if resp != nil {
+        w.Write(resp)
+    }
+
+    y, resp := paramCheck("y", r)
+    if resp != nil {
+        w.Write(resp)
+    }
+
+    format, resp := paramCheck("f", r)
+    if resp != nil {
+        format = "json"
+    }
 
     data, err := getDem(x,y)
     check(err)
@@ -58,11 +82,19 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func getElev(x string, y string) string {
+func getElev(x string, y string) (string, error) {
+    var zstr string
+
+    if _, err := os.Stat(demvrt); err !=  nil {
+      err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
+      return zstr, err
+    }
+
     cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + x + " " + y
     z, err := exec.Command("sh", "-c", cmd).Output()
+    zstr = string(z)
     check(err)
-    return string(z)
+    return zstr, err
 }
 
 
@@ -71,8 +103,12 @@ func getDem(x string, y string) (data Dem, err error) {
 
     var dem Dem
 
-    //TBD make this more elegant, remove dep on writing files to disk
+    if _, err := os.Stat(demvrt); err !=  nil {
+      err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
+      return dem, err
+    }
 
+    //TBD make this more elegant, remove dep on writing files to disk
     xint, _ := strconv.ParseFloat(x, 64)
     yint, _ := strconv.ParseFloat(y, 64)
     uly := strconv.FormatFloat(yint + 0.03, 'f', -2, 64)
