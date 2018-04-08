@@ -17,6 +17,11 @@ const (
 )
 
 
+type ErrorString struct {
+    s string
+}
+
+
 type Requests struct {
     Shp int64 `json:"shp"`
     Csv int64 `json:"csv"`
@@ -42,6 +47,16 @@ func check(e error) bool{
       return false
     }
     return true
+}
+
+
+func (e *ErrorString) Error() string {
+      return e.s
+}
+
+
+func New(text string) error {
+      return &ErrorString{text}
 }
 
 
