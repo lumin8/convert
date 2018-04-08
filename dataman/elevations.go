@@ -80,9 +80,9 @@ func getDem(x string, y string) (data Dem, err error) {
     bry := strconv.FormatFloat(yint - 0.03, 'f', -2, 64)
     brx := strconv.FormatFloat(xint + 0.03, 'f', -2, 64)
 
-    tif4326 := "mktemp ../tmp/XXXXXX.tif"
-    tif3857 := "mktemp ../tmp/XXXXXX.tif"
-    xyz3857 := "mktemp ../tmp/XXXXXX.xyz"
+    tif4326 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
+    tif3857 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
+    xyz3857 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.xyz"
 
     mktifin, _ := exec.Command("sh", "-c", tif4326).Output()
     mktifout, _ := exec.Command("sh", "-c", tif3857).Output()
@@ -101,7 +101,7 @@ func getDem(x string, y string) (data Dem, err error) {
     exec.Command("sh", "-c", cmds).Run()
 
     os.Remove(tifin)
-    //os.Remove(tifout)
+    os.Remove(tifout)
 
     xyz, err := os.Open(xyzfile)
     check(err)
@@ -119,7 +119,7 @@ func getDem(x string, y string) (data Dem, err error) {
     }
 
     xyz.Close()
-    //os.Remove(xyzfile)
+    os.Remove(xyzfile)
 
     log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
     return dem, err

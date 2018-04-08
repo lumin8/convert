@@ -6,8 +6,16 @@ import (
     "log"
     "net/http"
     "os"
+    "path/filepath"
+    "runtime"
     "sync"
     "time"
+)
+
+
+var (
+    _, b, _, _ = runtime.Caller(0)
+    basepath   = filepath.Dir(b)
 )
 
 
@@ -93,7 +101,8 @@ func (s *single) Incr(key string) int64 {
 }
 
 func readCount() {
-    read, err := ioutil.ReadFile(apilog)
+    path := basepath + "/" + apilog
+    read, err := ioutil.ReadFile(path)
     if err != nil {
       log.Println(err)
       return
