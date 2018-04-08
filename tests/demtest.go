@@ -4,8 +4,6 @@ import (
 	"bytes"
         "fmt"
 	"net/http"
-        "net/url"
-        "strings"
 )
 
 const (
@@ -24,18 +22,16 @@ func check (err error) {
 
 func newfileConversionRequest(uri string, params map[string]string) (*http.Request, error) {
 
-    query := url.Values{}
+    req, err := http.NewRequest("POST", uri, nil)
+    //req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+    check(err)
 
+    q := req.URL.Query()
     for k, v := range params {
-      query.Add(k,v)
+      q.Add(k,v)
     }
 
-    q := strings.NewReader(query.Encode())
-    fmt.Println(q)
-
-    req, err := http.NewRequest("POST", uri, q)
-    req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
-    check(err)
+    req.URL.RawQuery = q.Encode()
 
     return req, err
 }
