@@ -14,7 +14,7 @@ type Datasets struct {
     Name string `json:"name" yaml:"name"`
     Url string `json:"dataurl" yaml:"dataurl"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    Center []Center
+    Center []Point
     Bbox string `json:"bbox" yaml:"bbox"`
     S2hash string `json:"id" yaml:"id"`
     Xfield string `json:"xfield" yaml:"xfield"`
@@ -26,7 +26,7 @@ type Datasets struct {
     Format string `json:"format" yaml:"format"`
 }
 
-type Center struct {
+type Point struct {
     X float64 `json:"x" yaml:"x"`
     Y float64 `json:"y" yaml:"y"`
     Z float64 `json:"z" yaml:"z"`
@@ -41,8 +41,12 @@ type Dem struct {
 }
 
 type Points struct {
-    Point ([]float64)
+    Points []float64
     Attributes []Attributes
+}
+
+type Pointarray struct {
+    Points []([]float64)
 }
 
 type Lines struct {

@@ -19,7 +19,6 @@ import (
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
-    log.Println("woohoo, got a request!")
 
     _, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
     check(err)
@@ -67,7 +66,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
         converted = []byte("Sorry, things didn't work out.  Is the format supported?")
     }
 
-    ioutil.WriteFile("tests/out.json", converted, 0644)
+    //ioutil.WriteFile("tests/out.json", converted, 0644)
     w.Write(converted)
 
     log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
@@ -92,6 +91,7 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
     var attributes Attributes
 
     for i, record := range raw {
+      var pointxyz Point
       var point Points
       switch i {
         case 0 :
@@ -102,29 +102,30 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
               case zfield: headers[i] = "Z"
               default: headers[i] = header
             }
-            // if no Z header, create one
-            _, ok := header["Z"]
-            if !ok {
-              record = append(record, "Z")  point.Z, err := getElev(headers["x"],headers["y"])
-            }
           }
         default :
           for i, value := range record {
             switch headers[i] {
-              case "X": point.X, _ = strconv.ParseFloat(value, 64)
-              case "Y": point.Y, _ = strconv.ParseFloat(value, 64)
-              case "Z": point.Z, _ = strconv.ParseFloat(value, 64)
+              case "X": pointxyz.X, _ = strconv.ParseFloat(value, 64)
+              case "Y": pointxyz.Y, _ = strconv.ParseFloat(value, 64)
+              case "Z": pointxyz.Z, _ = strconv.ParseFloat(value, 64)
               default :
                 attributes.Key = headers[i]
                 attributes.Value = value
                 point.Attributes = append(point.Attributes, attributes)
             }
-
-            // fill elevation if required
-            if point.Z == 0 {
-              point.Z, err := getElev(x,y)
-            }
           }
+
+          // fill elevation if required
+          if pointxyz.Z == 0 && pointxyz.X != 0 && pointxyz.Y != 0 {
+            log.Printf("value needed filling in with elevation...")
+            pointxyz.Z, err = getElev(pointxyz.X,pointxyz.Y)
+          }
+
+          //finally, fill in the point float array
+          point.Points = append(point.Points, pointxyz.X)
+          point.Points = append(point.Points, pointxyz.Y)
+          point.Points = append(point.Points, pointxyz.Z)
       }
 
       outdataset.Points = append(outdataset.Points, point)

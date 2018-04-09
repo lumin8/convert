@@ -2,10 +2,11 @@ package main
 
 import (
     "database/sql"
+    "encoding/json"
     "errors"
     "fmt"
+    "log"
     "os"
-    "gopkg.in/yaml.v2"
     _ "github.com/lib/pq"
 )
 
@@ -88,7 +89,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
          case "points":
            var feature Points
            var attributes Attributes
-           feature.Point = derivePoints(geom)
+           feature.Points = derivePoints(geom).Points[0]
            attributes.Key = "name"
            attributes.Value = name
            feature.Attributes = append(feature.Attributes, attributes)
@@ -96,12 +97,12 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
          case "lines", "ways":
            var feature Lines
            feature.Name = name
-           feature.Points = derivePoints(geom)
+           feature.Points = derivePoints(geom).Points
            data.Lines = append(data.Lines, feature)
          case "shapes":
            var feature Shapes
            feature.Name = name
-           feature.Points = derivePoints(geom)
+           feature.Points = derivePoints(geom).Points
            data.Shapes = append(data.Shapes, feature)
       }
     }
@@ -109,18 +110,24 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
 }
 
 
-func derivePoints(geom string, feature string) Coords {
+func derivePoints(geom string) Pointarray {
     var geojson Geojson
-    data := yaml.Unmarshal(geom, &geojson)
-    for i, record := range data.Coords {
+    var jsonBlob = []byte(geom)
+    var coords Pointarray
+    err := json.Unmarshal(jsonBlob, &geojson)
+    check(err)
+
+    for i, record := range geojson.Coords {
       if len(record) < 3 {
-        z, err := getElev(x,y)
+        z, err := getElev(record[0],record[1])
         if err != nil {
           log.Printf("%s",err)
           continue
         }
-        data.Coords[i] = append(data.Coords[i], z)
+        geojson.Coords[i] = append(geojson.Coords[i], z)
       }
+      coords.Points = append(coords.Points, record)
     }
-    return data.Coords
+
+    return coords
 }

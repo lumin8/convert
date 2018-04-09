@@ -22,9 +22,7 @@ const (
 
 func paramCheck(i string, r *http.Request) (string, []byte) {
     var str string
-    log.Printf("%s",i)
     val, ok := r.URL.Query()[i]
-    log.Printf("%s",val)
     var resp []byte
     if !ok || len(val) < 1 {
         resp  = []byte("Please provide valid x and y parameters in lat/long decimal degrees.")
@@ -32,7 +30,6 @@ func paramCheck(i string, r *http.Request) (string, []byte) {
     }
 
     str = val[0]
-    log.Printf(i, str)
     return str, resp
 }
 
@@ -87,14 +84,14 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func getElev(x float64, y float64) (float64, error) {
-    var ztr string
+    var zstr string
 
     xstr := strconv.FormatFloat(x, 'f', -2, 64)
     ystr := strconv.FormatFloat(y, 'f', -2, 64)
 
     if _, err := os.Stat(demvrt); err !=  nil {
       err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
-      return zstr, err
+      return 0, err
     }
 
     cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
