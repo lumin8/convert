@@ -86,19 +86,24 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func getElev(x string, y string) (string, error) {
-    var zstr string
+func getElev(x float64, y float64) (float64, error) {
+    var ztr string
+
+    xstr := strconv.FormatFloat(x, 'f', -2, 64)
+    ystr := strconv.FormatFloat(y, 'f', -2, 64)
 
     if _, err := os.Stat(demvrt); err !=  nil {
       err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
       return zstr, err
     }
 
-    cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + x + " " + y
-    z, err := exec.Command("sh", "-c", cmd).Output()
-    zstr = string(z)
+    cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
+    zbyte, err := exec.Command("sh", "-c", cmd).Output()
     check(err)
-    return zstr, err
+    zstr = string(zbyte)
+
+    z, _ := strconv.ParseFloat(zstr, 64)
+    return z, err
 }
 
 

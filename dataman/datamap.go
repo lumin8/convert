@@ -53,12 +53,6 @@ type Point struct {
     Point []float64
 }
 
-//type DemPoints struct {
-//    X float64 `json:"x" yaml:"x"`
-//    Y float64 `json:"y" yaml:"y"`
-//    Z float64 `json:"z" yaml:"z"`
-//}
-
 type Points struct {
     X float64 `json:"x" yaml:"x"`
     Y float64 `json:"y" yaml:"y"`
@@ -67,17 +61,23 @@ type Points struct {
 }
 
 type Lines struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Attributes []Attributes
+    Points []PointSimple
 }
 
 type Shapes struct {
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
+    Attributes []Attributes
+    Points []PointSimple
+}
+
+type PointSimple struct {
     X float64 `json:"x" yaml:"x"`
     Y float64 `json:"y" yaml:"y"`
     Z float64 `json:"z" yaml:"z"`
-    Attributes []Attributes
 }
 
 type Attributes struct {
@@ -95,4 +95,11 @@ type Input struct {
     Format string `json:"format" yaml:"format"`
 }
 
+type Geojson struct {
+    Type string `json:"type" yaml:"type"`
+    Coords []Coords
+}
 
+type Coords struct {
+    Point
+}

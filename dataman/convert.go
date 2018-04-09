@@ -102,6 +102,11 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
               case zfield: headers[i] = "Z"
               default: headers[i] = header
             }
+            // if no Z header, create one
+            _, ok := header["Z"]
+            if !ok {
+              record = append(record, "Z")  point.Z, err := getElev(headers["x"],headers["y"])
+            }
           }
         default :
           for i, value := range record {
@@ -114,11 +119,15 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
                 attributes.Value = value
                 point.Attributes = append(point.Attributes, attributes)
             }
+
+            // fill elevation if required
+            if point.Z == 0 {
+              point.Z, err := getElev(x,y)
+            }
           }
       }
 
       outdataset.Points = append(outdataset.Points, point)
-
     }
 
     converted, err = json.Marshal(outdataset)
