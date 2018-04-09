@@ -154,7 +154,6 @@ func getDem(x string, y string) (data Dem, err error) {
 
     scanner := bufio.NewScanner(xyz)
     for scanner.Scan() {
-      //var point Point
       values := strings.Fields(scanner.Text())
       X := str2fixed(values[0])
       Y := str2fixed(values[1])

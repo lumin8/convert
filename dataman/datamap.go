@@ -1,10 +1,5 @@
 package main
 
-const (
-    Convert = "tools/convert.py" //tbd handle csv, shp dem...
-    Getdem = "tools/dem.py"
-)
-
 type Projects struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
@@ -12,14 +7,6 @@ type Projects struct {
     S2hash string `json:"s2hash" yaml:"s2hash"`
     Dem []Dem
     Datasets []Datasets
-}
-
-type Dem struct {
-    Id string `json:"id" yaml:"id"`
-    Name string `json:"name" yaml:"name"`
-    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    S2hash string `json:"s2hash" yaml:"s2hash"`
-    Points []([]float64)
 }
 
 type Datasets struct {
@@ -45,18 +32,16 @@ type Center struct {
     Z float64 `json:"z" yaml:"z"`
 }
 
-type DemPoints struct {
-    Point
-}
-
-type Point struct {
-    Point []float64
+type Dem struct {
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
+    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
+    S2hash string `json:"s2hash" yaml:"s2hash"`
+    Points []([]float64)
 }
 
 type Points struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Point ([]float64)
     Attributes []Attributes
 }
 
@@ -64,20 +49,14 @@ type Lines struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Attributes []Attributes
-    Points []PointSimple
+    Points []([]float64)
 }
 
 type Shapes struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Attributes []Attributes
-    Points []PointSimple
-}
-
-type PointSimple struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Points []([]float64)
 }
 
 type Attributes struct {
@@ -97,9 +76,6 @@ type Input struct {
 
 type Geojson struct {
     Type string `json:"type" yaml:"type"`
-    Coords []Coords
+    Coords []([]float64)
 }
 
-type Coords struct {
-    Point
-}

@@ -82,29 +82,29 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
     for rows.Next() {
       var name string
       var geom string
+      err = rows.Scan(&name, &geom)
+      check(err)
       switch table {
          case "points":
-           err = rows.Scan(&name, &geom)
            var feature Points
-           feature.Points = derivePoints(geom)
-           feature.Points.Attributes.Key = "name"
-           feature.Points.Attributes.Value = name
+           var attributes Attributes
+           feature.Point = derivePoints(geom)
+           attributes.Key = "name"
+           attributes.Value = name
+           feature.Attributes = append(feature.Attributes, attributes)
            data.Points = append(data.Points, feature)
          case "lines", "ways":
-           err = rows.Scan(&name, &geom)
            var feature Lines
            feature.Name = name
            feature.Points = derivePoints(geom)
            data.Lines = append(data.Lines, feature)
          case "shapes":
-           err = rows.Scan(&name, &geom)
            var feature Shapes
            feature.Name = name
            feature.Points = derivePoints(geom)
            data.Shapes = append(data.Shapes, feature)
       }
     }
-
     return data, err
 }
 
