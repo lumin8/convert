@@ -32,6 +32,10 @@ type Point struct {
     Z float64 `json:"z" yaml:"z"`
 }
 
+type Pointarray struct {
+    Points []([]float64)
+}
+
 type Dem struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
@@ -41,11 +45,9 @@ type Dem struct {
 }
 
 type Points struct {
-    Points []float64
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Attributes []Attributes
-}
-
-type Pointarray struct {
     Points []([]float64)
 }
 

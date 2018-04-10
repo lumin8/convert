@@ -6,7 +6,9 @@ import (
     "errors"
     "fmt"
     "log"
+    "net/http"
     "os"
+    "time"
     _ "github.com/lib/pq"
 )
 
@@ -18,6 +20,46 @@ const (
     ways = "planet_osm_roads"
     pgpass = "$HOME/.pgpass"
 )
+
+
+func nearmeHandler(w http.ResponseWriter, r *http.Request) {
+    start := time.Now()
+
+    x, resp := paramCheck("x", r)
+    if resp != nil {
+        w.Write(resp)
+    }
+
+    y, resp := paramCheck("y", r)
+    if resp != nil {
+        w.Write(resp)
+    }
+
+    format, resp := paramCheck("f", r)
+    if resp != nil {
+        format = "json"
+    }
+
+    flavor, resp := paramCheck("type", r)
+    if resp != nil {
+        flavor = "poi"
+    }
+
+    data, err := fetchData(x,y,flavor)
+    check(err)
+
+    switch format {
+      case "json" :
+        out, _ := json.Marshal(data)
+        w.Write(out)
+      case "struct" :
+        //out := bytes.NewReader(data)
+        //w.Write(data)
+    }
+
+    counter.Incr("dem")
+    log.Println(counter.Get("dem"),"dems processed, time:",int64(time.Since(start).Seconds()*1e3),"ms")
+}
 
 
 func fetchData(x string, y string, flavor string) (Datasets, error) {
@@ -89,7 +131,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
          case "points":
            var feature Points
            var attributes Attributes
-           feature.Points = derivePoints(geom).Points[0]
+           feature.Points = derivePoints(geom).Points
            attributes.Key = "name"
            attributes.Value = name
            feature.Attributes = append(feature.Attributes, attributes)
