@@ -48,7 +48,7 @@ type Points struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Attributes []Attributes
-    Points []([]float64)
+    Points []float64
 }
 
 type Lines struct {
@@ -80,8 +80,13 @@ type Input struct {
     Format string `json:"format" yaml:"format"`
 }
 
-type Geojson struct {
+type GeojsonS struct {
     Type string `json:"type" yaml:"type"`
-    Coords []([]float64)
+    Coords []float64 `json:"coordinates" yaml:"coordinates"`
+}
+
+type GeojsonM struct {
+    Type string `json:"type" yaml:"type"`
+    Coords []([]float64) `json:"coordinates" yaml:"coordinates"`
 }
 
