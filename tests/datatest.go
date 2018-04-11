@@ -90,6 +90,6 @@ func main() {
       resp.Body.Close()
         fmt.Printf("Response Status: %s\n",resp.StatusCode)
         fmt.Printf("Response Headers: %s\n",resp.Header)
-        //fmt.Printf("Response Body: %s\n",body)
+        fmt.Printf("Response Body: %s\n",body)
     }
 }

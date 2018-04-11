@@ -21,14 +21,15 @@ const (
 
 
 func paramCheck(i string, r *http.Request) (string, []byte) {
+    var str string
     val, ok := r.URL.Query()[i]
     var resp []byte
     if !ok || len(val) < 1 {
         resp  = []byte("Please provide valid x and y parameters in lat/long decimal degrees.")
+        return str, resp
     }
 
-    str := val[0]
-
+    str = val[0]
     return str, resp
 }
 
@@ -82,19 +83,24 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func getElev(x string, y string) (string, error) {
+func getElev(x float64, y float64) (float64, error) {
     var zstr string
+
+    xstr := strconv.FormatFloat(x, 'f', -2, 64)
+    ystr := strconv.FormatFloat(y, 'f', -2, 64)
 
     if _, err := os.Stat(demvrt); err !=  nil {
       err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
-      return zstr, err
+      return 0, err
     }
 
-    cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + x + " " + y
-    z, err := exec.Command("sh", "-c", cmd).Output()
-    zstr = string(z)
+    cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
+    zbyte, err := exec.Command("sh", "-c", cmd).Output()
     check(err)
-    return zstr, err
+    zstr = string(zbyte)
+
+    z, _ := strconv.ParseFloat(zstr, 64)
+    return z, err
 }
 
 
@@ -145,7 +151,6 @@ func getDem(x string, y string) (data Dem, err error) {
 
     scanner := bufio.NewScanner(xyz)
     for scanner.Scan() {
-      //var point Point
       values := strings.Fields(scanner.Text())
       X := str2fixed(values[0])
       Y := str2fixed(values[1])
