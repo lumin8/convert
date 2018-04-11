@@ -1,10 +1,5 @@
 package main
 
-const (
-    Convert = "tools/convert.py" //tbd handle csv, shp dem...
-    Getdem = "tools/dem.py"
-)
-
 type Projects struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
@@ -14,20 +9,12 @@ type Projects struct {
     Datasets []Datasets
 }
 
-type Dem struct {
-    Id string `json:"id" yaml:"id"`
-    Name string `json:"name" yaml:"name"`
-    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    S2hash string `json:"s2hash" yaml:"s2hash"`
-    Points []([]float64)
-}
-
 type Datasets struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Url string `json:"dataurl" yaml:"dataurl"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    Center []Center
+    Center []Point
     Bbox string `json:"bbox" yaml:"bbox"`
     S2hash string `json:"id" yaml:"id"`
     Xfield string `json:"xfield" yaml:"xfield"`
@@ -39,45 +26,43 @@ type Datasets struct {
     Format string `json:"format" yaml:"format"`
 }
 
-type Center struct {
+type Point struct {
     X float64 `json:"x" yaml:"x"`
     Y float64 `json:"y" yaml:"y"`
     Z float64 `json:"z" yaml:"z"`
 }
 
-type DemPoints struct {
-    Point
+type Pointarray struct {
+    Points []([]float64)
 }
 
-type Point struct {
-    Point []float64
+type Dem struct {
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
+    Updated string `json:"lastUpdated" yaml:"lastUpdated"`
+    S2hash string `json:"s2hash" yaml:"s2hash"`
+    Points []([]float64)
 }
-
-//type DemPoints struct {
-//    X float64 `json:"x" yaml:"x"`
-//    Y float64 `json:"y" yaml:"y"`
-//    Z float64 `json:"z" yaml:"z"`
-//}
 
 type Points struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Attributes []Attributes
+    Points []float64
 }
 
 type Lines struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Attributes []Attributes
+    Points []([]float64)
 }
 
 type Shapes struct {
-    X float64 `json:"x" yaml:"x"`
-    Y float64 `json:"y" yaml:"y"`
-    Z float64 `json:"z" yaml:"z"`
+    Id string `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
     Attributes []Attributes
+    Points []([]float64)
 }
 
 type Attributes struct {
@@ -95,4 +80,13 @@ type Input struct {
     Format string `json:"format" yaml:"format"`
 }
 
+type GeojsonS struct {
+    Type string `json:"type" yaml:"type"`
+    Coords []float64 `json:"coordinates" yaml:"coordinates"`
+}
+
+type GeojsonM struct {
+    Type string `json:"type" yaml:"type"`
+    Coords []([]float64) `json:"coordinates" yaml:"coordinates"`
+}
 

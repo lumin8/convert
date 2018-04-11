@@ -1,0 +1,58 @@
+{
+  "id": null,
+  "name": null,
+  "lastUpdated": null,
+  "url": null,
+  "center": [
+  ],
+  "bbox": null,
+  "s2hash": null,
+  "points": [
+    {
+      "id": null,
+      "name": null,
+      "attributes": [
+        {
+          "key": null,
+          "value": null
+        }
+      ],
+      "points": [
+        [
+        ]
+      ]
+    }
+  ],
+  "lines": [
+    {
+      "id": null,
+      "name": null,
+      "attributes": [
+        {
+          "key": null,
+          "value": null
+        }
+      ],
+      "points": [
+        [
+        ]
+      ]
+    }
+  ],
+  "shapes": [
+    {
+      "id": null,
+      "name": null,
+      "attributes": [
+        {
+          "key": null,
+          "value": null
+        }
+      ],
+      "points": [
+        [
+        ]
+      ]
+    }
+  ]
+}
