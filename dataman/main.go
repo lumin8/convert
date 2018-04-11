@@ -85,6 +85,8 @@ func main() {
 
     m.HandleFunc("/data", dataHandler)
     m.HandleFunc("/dem", demHandler)
+    m.HandleFunc("/nearme", nearmeHandler)
+
     log.Println("Listening on " + ListeningPort)
     proxy.ListenAndServe()
 }

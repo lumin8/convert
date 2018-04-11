@@ -1,0 +1,39 @@
+---
+id:
+name:
+lastUpdated:
+url:
+center: []
+bbox:
+s2hash:
+dem:
+- id:
+  name:
+  updated:
+  s2hash:
+  points:
+  - []
+points:
+- id:
+  name:
+  attributes:
+  - key:
+    value:
+  points:
+  - []
+lines:
+- id:
+  name:
+  attributes:
+  - key:
+    value:
+  points:
+  - []
+shapes:
+- id:
+  name:
+  attributes:
+  - key:
+    value:
+  points:
+  - []
