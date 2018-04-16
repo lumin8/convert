@@ -9,14 +9,13 @@ import (
     "net/http"
     "os"
     "os/user"
-    "strconv"
     "time"
     _ "github.com/lib/pq"
 )
 
 const (
     dbname = "osm"
-    lines = "planet_osm_lines"
+    lines = "planet_osm_line"
     points = "planet_osm_point"
     shapes = "planet_osm_polygon"
     ways = "planet_osm_roads"
@@ -49,8 +48,6 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
 
     data, err := fetchData(x,y,flavor)
     check(err)
-
-    log.Println("woohoo!  almost to gettin done")
 
     switch format {
       case "json" :
@@ -98,27 +95,28 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
     switch flavor {
       case "trails" :
         table = lines
-        wheresql = "\"type\" ILIKE 'trail' or type ILIKE '%path%'"
-        meters = "20000"
+        wheresql = `where "name" ~* ('trail|park|river|ski|stream') `
+        meters = "5000"
       case "roads" :
         table = ways
-        wheresql = "type ILIKE '%roads%'"
-        meters = "2000"
+        wheresql = `where "name" ~* ('trail|park|river|ski|stream') `
+        meters = "1000"
       case "shapes" :
         table = shapes
-        wheresql = ""
-        meters = "2000"
+        wheresql = `where "name" ~* ('trail|park|river|ski|stream') `
+        meters = "1000"
       case "poi" :
         table = points
-        wheresql = strconv.Quote("natural") + " IS NOT NULL"
-        meters = "20000"
+        wheresql = `where "name" ~* ('trailhead|park|peak|river|point|ski|lake|overlook') `
+        meters = "10000"
       default :
         errors.New("Either no data exists, or your request is not supported")
         return data, err
     }
 
-    query := "SELECT name, st_asgeojson(way) FROM " + table + " WHERE " + wheresql
-    query = query + " and ST_Within(way, ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint(" + x + ", " + y + "), 4326), 900913), " + meters + ")) = True"
+    query := "with nearme as (select name,way FROM " + table + " WHERE ST_Intersects(way, ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +"))) select name, st_asgeojson(ST_Intersection(way, ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +")) ) from nearme "
+    query = query + wheresql
+
     rows, err := db.Query(query)
 
     if err == sql.ErrNoRows {
@@ -132,6 +130,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
     }
 
     for rows.Next() {
+      // TBD Scott insert goroutines here
       var name string
       var geom string
       err = rows.Scan(&name, &geom)
@@ -140,11 +139,9 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
          case points:
            var feature Points
            var attributes Attributes
-           feature.Points = derivePoint(geom).Points[0]
+           feature.Point = derivePoint(geom).Points[0]
            attributes.Key = "name"
            attributes.Value = name
-           log.Printf("%v",name)
-           log.Printf("%v",geom)
            feature.Attributes = append(feature.Attributes, attributes)
            data.Points = append(data.Points, feature)
          case lines, ways:
@@ -170,20 +167,29 @@ func derivePoints(geom string) Pointarray {
     err := json.Unmarshal([]byte(geom), &geojson)
     check(err)
 
-    log.Printf("%v",geojson)
+//    var wg sync.WaitGroup
+//    log.Printf("%v",geojson)
+//    wg.Add(len(geojson.Coords))
 
-    for i, point := range geojson.Coords {
-      log.Printf("%v",point)
-      if len(point) < 3 {
-        z, err := getElev(point[0],point[1])
-        if err != nil {
-          log.Printf("%s",err)
-          continue
+//    for i := 0; i < len(geojson.Coords); i++ {
+//    go func(i int) {
+      for _, point := range geojson.Coords {
+        var z float64
+        if len(point) < 3 {
+          z, err = getElev(point[0],point[1])
+          if err != nil {
+            log.Printf("%s",err)
+          }
         }
-        geojson.Coords[i] = append(geojson.Coords[i], z)
+        var xyz []float64
+        xyz = append(xyz, point[0], point[1], z)
+        coords.Points = append(coords.Points, xyz)
       }
-      coords.Points = append(coords.Points, point)
-    }
+ //     wg.Done()
+ //   }(i)
+ //   }
+
+   // wg.Wait()
 
     return coords
 }
@@ -191,10 +197,9 @@ func derivePoints(geom string) Pointarray {
 func derivePoint(geom string) Pointarray {
     var geojson GeojsonS
     var coords Pointarray
+
     err := json.Unmarshal([]byte(geom), &geojson)
     check(err)
-
-    log.Printf("%v",geojson)
 
     if len(geojson.Coords) < 3 {
       z, err := getElev(geojson.Coords[0],geojson.Coords[1])
