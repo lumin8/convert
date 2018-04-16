@@ -5,8 +5,8 @@ type Projects struct {
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     S2hash string `json:"s2hash" yaml:"s2hash"`
-    Dem []Dem
-    Datasets []Datasets
+    Dem []Dem `json:"dem" yaml:"dem"`
+    Datasets []Datasets `json:"datasets" yaml:"datasets"`
 }
 
 type Datasets struct {
@@ -14,12 +14,12 @@ type Datasets struct {
     Name string `json:"name" yaml:"name"`
     Url string `json:"dataurl" yaml:"dataurl"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    Center []Point
+    Center []Point `json:"center" yaml:"center"`
     Bbox string `json:"bbox" yaml:"bbox"`
     S2hash string `json:"id" yaml:"id"`
-    Points []Points
-    Lines []Lines
-    Shapes []Shapes
+    Points []Points `json:"points" yaml:"points"`
+    Lines []Lines `json:"lines" yaml:"lines"`
+    Shapes []Shapes `json:"shapes" yaml:"shapes"`
 }
 
 type Point struct {
@@ -29,7 +29,7 @@ type Point struct {
 }
 
 type Pointarray struct {
-    Points []([]float64)
+    Points []([]float64) `json:"points" yaml:"points"`
 }
 
 type Dem struct {
@@ -37,28 +37,28 @@ type Dem struct {
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     S2hash string `json:"s2hash" yaml:"s2hash"`
-    Points []([]float64)
+    Points []([]float64) `json:"points" yaml:"points"`
 }
 
 type Points struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes
-    Point []float64
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    Point []float64 `json:"point" yaml:"point"`
 }
 
 type Lines struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes
-    Points []([]float64)
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    Points []([]float64) `json:"points" yaml:"points"`
 }
 
 type Shapes struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes
-    Points []([]float64)
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    Points []([]float64) `json:"points" yaml:"points"`
 }
 
 type Attributes struct {
