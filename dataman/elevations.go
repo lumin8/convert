@@ -5,6 +5,7 @@ import (
      "bufio"
      "encoding/json"
      "errors"
+     "github.com/paulmach/go.geo"
      "log"
      "net/http"
      "os"
@@ -84,10 +85,13 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func getElev(x float64, y float64) (float64, error) {
+    // outputs in meters, works regardless of input projection
+    lon, lat := to4326(x, y)
+
     var zstr string
 
-    xstr := strconv.FormatFloat(x, 'f', -2, 64)
-    ystr := strconv.FormatFloat(y, 'f', -2, 64)
+    xstr := strconv.FormatFloat(lon, 'f', -2, 64)
+    ystr := strconv.FormatFloat(lat, 'f', -2, 64)
 
     if _, err := os.Stat(demvrt); err !=  nil {
       err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
@@ -97,17 +101,16 @@ func getElev(x float64, y float64) (float64, error) {
     cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
     zbyte, err := exec.Command("sh", "-c", cmd).Output()
     check(err)
-    zstr = string(zbyte)
-
+    zstr = strings.TrimSpace(string(zbyte))
     z, _ := strconv.ParseFloat(zstr, 64)
     return z, err
 }
 
 
-func getDem(x string, y string) (data Dem, err error) {
+func getDem(x string, y string) (Datasets, error) {
     start := time.Now()
 
-    var dem Dem
+    var dem Datasets
 
     if _, err := os.Stat(demvrt); err !=  nil {
       err = errors.New("Sorry, the world digital elevation model (DEM) is unavailable")
@@ -151,11 +154,13 @@ func getDem(x string, y string) (data Dem, err error) {
 
     scanner := bufio.NewScanner(xyz)
     for scanner.Scan() {
+      var point Points
       values := strings.Fields(scanner.Text())
       X := str2fixed(values[0])
       Y := str2fixed(values[1])
       Z := str2fixed(values[2])
-      point := []float64{X,Y,Z}
+      //newpoint := []float64{X,Y,Z}
+      point.Point = append(point.Point, X, Y, Z)
       dem.Points = append(dem.Points, point)
     }
 
@@ -170,6 +175,31 @@ func getDem(x string, y string) (data Dem, err error) {
 func str2fixed(num string) float64 {
     val, _ := strconv.ParseFloat(num,64)
     j := strconv.FormatFloat(val, 'f', 2, 64)
-    i, _ := strconv.ParseFloat(j,64)
-    return i
+    k, _ := strconv.ParseFloat(j,64)
+    return k
 }
+
+
+func to4326(x float64, y float64) (float64, float64) {
+    // regardless of inbound, kicks out 4326
+    if (x <= 180) && (x >= -180) {
+        return x, y
+    } else {
+      mercPoint := geo.NewPoint(x, y)
+      geo.Mercator.Inverse(mercPoint)
+      return mercPoint[0],mercPoint[1]
+    }
+}
+
+
+func to3857(x float64, y float64) (float64, float64) {
+    // regardless of inbound, kicks out 3857
+    if (x > 180) || (x < -180) {
+        return x, y
+    } else {
+      mercPoint := geo.NewPoint(x, y)
+      geo.Mercator.Project(mercPoint)
+      return mercPoint[0],mercPoint[1]
+    }
+}
+
