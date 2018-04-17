@@ -6,20 +6,13 @@ url:
 center: []
 bbox:
 s2hash:
-dem:
-- id:
-  name:
-  updated:
-  s2hash:
-  points:
-  - []
 points:
 - id:
   name:
   attributes:
   - key:
     value:
-  points:
+  point:
   - []
 lines:
 - id:

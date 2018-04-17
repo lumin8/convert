@@ -123,7 +123,7 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
           }
 
           //finally, fill in the point float array
-          point.Points = append(point.Points, pointxyz.X, pointxyz.Y, pointxyz.Z)
+          point.Point = append(point.Point, pointxyz.X, pointxyz.Y, pointxyz.Z)
       }
 
       outdataset.Points = append(outdataset.Points, point)
