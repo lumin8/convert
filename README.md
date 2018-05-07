@@ -27,8 +27,8 @@ Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphe
 
 types currently supported/planned:
 - **poi** supported=YES (points of interest, eg. peak names, waterbodies, trailheads, etc.)
-- **trails** supported=TBD (trails, paths, hiking routes, etc.)
-- **roads** supported=TBD (roads, interstates, etc...   this could get intense)
+- **trails** supported=YES (trails, paths, hiking routes, etc.)
+- **roads** supported=YES (roads, interstates, etc...   this could get intense)
 - **shapes** supported=TBD (building footprints, other random polygons)
 - **water** supported=TBD (rivers, streams, etc.)
 
