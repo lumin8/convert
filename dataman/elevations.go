@@ -120,10 +120,10 @@ func getDem(x string, y string) (Datasets, error) {
     //TBD make this more elegant, remove dep on writing files to disk
     xint, _ := strconv.ParseFloat(x, 64)
     yint, _ := strconv.ParseFloat(y, 64)
-    uly := strconv.FormatFloat(yint + 0.03, 'f', -2, 64)
-    ulx := strconv.FormatFloat(xint - 0.03, 'f', -2, 64)
-    bry := strconv.FormatFloat(yint - 0.03, 'f', -2, 64)
-    brx := strconv.FormatFloat(xint + 0.03, 'f', -2, 64)
+    uly := strconv.FormatFloat(yint + 0.015, 'f', -2, 64)
+    ulx := strconv.FormatFloat(xint - 0.015, 'f', -2, 64)
+    bry := strconv.FormatFloat(yint - 0.015, 'f', -2, 64)
+    brx := strconv.FormatFloat(xint + 0.015, 'f', -2, 64)
 
     tif4326 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
     tif3857 := "mktemp " + basepath + "/" + "../tmp/XXXXXX.tif"
