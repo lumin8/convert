@@ -1,9 +1,0 @@
----
-id:     #int (uid)
-xfield: #string (name of incoming X field) 
-yfield: #string (name of incoming Y field)
-zfield: #string (name of incoming Z field)
-srs:    #int (4 digit code of projection system)
-units:  #string default 'meters'
-format: #string : csv, shp or dxf
-geom:   #string : points, lines, or shapes
