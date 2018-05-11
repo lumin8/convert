@@ -17,7 +17,7 @@ import (
 
 
 const (
-    demvrt = "/data/raw/dem/hdt/earthdem.vrt"
+    demvrt = "/data/dem/hdt/earthdem.vrt"
 )
 
 
@@ -110,6 +110,8 @@ func getElev(x float64, y float64) (float64, error) {
 func getDem(x string, y string) (Datasets, error) {
     start := time.Now()
 
+    log.Println("fetching a dem for " + x + ", " + y)
+
     var dem Datasets
 
     if _, err := os.Stat(demvrt); err !=  nil {
@@ -159,7 +161,6 @@ func getDem(x string, y string) (Datasets, error) {
       X := str2fixed(values[0])
       Y := str2fixed(values[1])
       Z := str2fixed(values[2])
-      //newpoint := []float64{X,Y,Z}
       point.Point = append(point.Point, X, Y, Z)
       dem.Points = append(dem.Points, point)
     }

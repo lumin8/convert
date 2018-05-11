@@ -1,5 +1,5 @@
 /sample/tmp/
-tmp/
+tmp/*
 *.sw*
 main
 mappings

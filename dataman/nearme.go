@@ -16,12 +16,10 @@ import (
 
 const (
     dbname = "osm"
-    //lines = "planet_osm_line"
-    lines = "lines"
-    //points = "planet_osm_point"
+    // table names
+    trails = "trails"
     points = "poi"
     shapes = "planet_osm_polygon"
-    //roads = "planet_osm_line"
     roads = "roads"
     pgcreds = "/.pgpass"
 )
@@ -69,9 +67,10 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
 
 func fetchData(x string, y string, flavor string) (Datasets, error) {
     var table string
-//    var wheresql string
     var meters string
     var data Datasets
+
+    log.Println("nearme query for",flavor,"around",x,y)
 
     usr, err := user.Current()
     check(err)
@@ -98,20 +97,16 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
 
     switch flavor {
       case "trails" :
-        table = lines
- //       wheresql = `where "name" ~* ('trail|park|river|ski|stream') `
+        table = trails
         meters = "5000"
       case "roads" :
         table = roads
- //       wheresql = ``
         meters = "500"
       case "shapes" :
         table = shapes
- //       wheresql = `where "name" ~* ('trailhead|park|peak|river|point|ski|lake|overlook')`
         meters = "1000"
       case "poi" :
         table = points
-//        wheresql = `where "name" ~* ('trailhead|park|peak|river|point|ski|lake|overlook') `
         meters = "10000"
       default :
         errors.New("Either no data exists, or your request is not supported")
@@ -121,9 +116,6 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
     query := "with nearme as (select name,way FROM " + table + " WHERE ST_Intersects(way, ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +")) and name is not null and way is not null) select name, st_asgeojson(ST_Intersection(way, ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +")) ) from nearme "
 
 //    query := "with nearme as (select name,way FROM " + table + " WHERE ST_DWithin(way, ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +") and name is not null and way is not null) select name, st_asgeojson(st_intersection(way,ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint("+ x +", "+ y +"), 4326), 900913), "+ meters +"))) from nearme "
-    //query = query + wheresql
-
-    log.Println(query)
 
     rows, err := db.Query(query)
     defer rows.Close()
@@ -148,13 +140,13 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
       if err != nil {
         continue
       }
-      log.Println(name,geom)
+      //log.Println(name,geom)
 
       wg.Add(1)
 
       go func() {
         switch table {
-           case points:
+           case "points", "poi", "pois":
              var feature Points
              var attributes Attributes
              feature.Point = derivePoint(geom).Points[0]
@@ -162,7 +154,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
              attributes.Value = name
              feature.Attributes = append(feature.Attributes, attributes)
              data.Points = append(data.Points, feature)
-           case lines, "roads":
+           case "trails", "roads":
              var feature Lines
              feature.Name = name
              feature.Points = derivePoints(geom).Points
