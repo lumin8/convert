@@ -4,7 +4,7 @@ This api takes http POST of csv (tbd shp and dxf), and returns json or a struct 
 
 There are currently two principle pieces: main.go and mappings.go, which hold the business end and the struct mappings end of the code project, respectively.
 
-Service already running?  just hit `http://mapp.life/data` with the INBOUND multipart file (see below).
+**Current Server Address: http://map.life:8000/**
 
 To use:
 - download this repo
@@ -14,11 +14,11 @@ To use:
 - > ./make.bash  //compiles the program so it may be run simply by typing ./main
 
 
-## DEM endpoint:  serveraddress/dem/?x=&y=&f=
+## DEM endpoint:  .../dem/?x=&y=
 
 Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], and a format (json), and what comes back will be a DEM in EPSG:3857 approximate 0.06 degrees square surrounding the central xy point.  
 
-#### TBD
+DEM is currently set to a 0.03 x 0.03 decimal degree wide grid, which is approximately 3km.
 
 
 ## NEARME endpoint:  serveraddress/nearme/?x=&y=&f=&type=
@@ -26,11 +26,12 @@ Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphe
 Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], a format (json), and a type (see below)...  what comes back will be a dataset in EPSG:3857 approximately 2 kilometers around you (depending on the type)i...  NOTE:  all points forming these shapes WILL HAVE ELEVATION AS WELL!
 
 types currently supported/planned:
-- **poi** supported=YES (points of interest, eg. peak names, waterbodies, trailheads, etc.)
-- **trails** supported=YES (trails, paths, hiking routes, etc.)
-- **roads** supported=YES (roads, interstates, etc...   this could get intense)
-- **shapes** supported=TBD (building footprints, other random polygons)
-- **water** supported=TBD (rivers, streams, etc.)
+- **&type=poi** supported=YES (points of interest, eg. peak names, waterbodies, trailheads, etc.)
+- **&type=trails** supported=YES (trails, paths, hiking routes, etc.)
+- **&type=roads** supported=YES (roads, interstates, etc...   this could get intense)
+
+- **shapes** supported=SOON (building footprints, other random polygons)
+- **water** supported=SOON (rivers, streams, etc.)
 
 eg ````curl "http://mapp.life:8000/nearme?x=-111.45&y=45.567&f=json&type=poi" -o nearme.txt````
 ## DATA conversion endpoint:  serveraddress/data/  [multipart file]
@@ -55,6 +56,5 @@ One test currently exists as 'data_test.go'.  This can be run from any machine, 
 
 ## TBD
 Add SHP conversion functionality
-Add DSF conversion functionality
+Add DXF conversion functionality
 Handle different Coordinate Systems
-ADd DEM Point Cloud capturing
