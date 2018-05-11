@@ -21,20 +21,24 @@ Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphe
 DEM is currently set to a 0.03 x 0.03 decimal degree wide grid, which is approximately 3km.
 
 
-## NEARME endpoint:  serveraddress/nearme/?x=&y=&f=&type=
+## NEARME endpoint:  .../nearme/?x=&y=&f=&type=
 
 Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], a format (json), and a type (see below)...  what comes back will be a dataset in EPSG:3857 approximately 2 kilometers around you (depending on the type)i...  NOTE:  all points forming these shapes WILL HAVE ELEVATION AS WELL!
 
-types currently supported/planned:
-- **&type=poi** supported=YES (points of interest, eg. peak names, waterbodies, trailheads, etc.)
-- **&type=trails** supported=YES (trails, paths, hiking routes, etc.)
-- **&type=roads** supported=YES (roads, interstates, etc...   this could get intense)
+Types currently supported:
+- **&type=poi**  (points of interest, eg. peak names, waterbodies, trailheads, etc.)
+- **&type=trails**  (trails, paths, hiking routes, etc.)
+- **&type=roads**  (roads, interstates, etc...   this could get intense)
+- **&type=water**  (rivers, streams, etc.)
 
+## NEARME Styles:  .../nearme/?styles=get
+
+
+### TBD
 - **shapes** supported=SOON (building footprints, other random polygons)
-- **water** supported=SOON (rivers, streams, etc.)
 
 eg ````curl "http://mapp.life:8000/nearme?x=-111.45&y=45.567&f=json&type=poi" -o nearme.txt````
-## DATA conversion endpoint:  serveraddress/data/  [multipart file]
+## DATA conversion endpoint:  .../convert/  [multipart file]
 
 Hit this enpoint with a multipart file, one is the map of the data (info) the other is the file itself (file) and it'll give back a converted dataset prepared for Unity / DeepAR according to json structure in config/
 

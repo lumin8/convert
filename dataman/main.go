@@ -83,7 +83,7 @@ func main() {
       ReadTimeout: 10 * time.Second,
     }
 
-    m.HandleFunc("/data", dataHandler)
+    m.HandleFunc("/convert", dataHandler)
     m.HandleFunc("/dem", demHandler)
     m.HandleFunc("/nearme", nearmeHandler)
 

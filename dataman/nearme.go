@@ -4,6 +4,7 @@ import (
     "database/sql"
     "encoding/json"
     "errors"
+    "io/ioutil"
     "fmt"
     "log"
     "net/http"
@@ -16,11 +17,17 @@ import (
 
 const (
     dbname = "osm"
+
     // table names
     trails = "trails"
     points = "poi"
     shapes = "planet_osm_polygon"
     roads = "roads"
+    rivers = "rivers"
+
+    // style file
+    styles = "config/styles.json"
+
     pgcreds = "/.pgpass"
 )
 
@@ -28,28 +35,50 @@ const (
 func nearmeHandler(w http.ResponseWriter, r *http.Request) {
     start := time.Now()
 
-    x, resp := paramCheck("x", r)
-    if resp != nil {
-        w.Write(resp)
+    flavor, err := paramCheck("styles", r)
+    if err != nil {
+        flavor = ""
+    } else {
+        f, err := ioutil.ReadFile(styles)
+        if err != nil {
+          log.Printf("%s",err)
+          w.Write([]byte("could not fetch stylesheet"))
+        }
+        log.Println("stylesheet request")
+        log.Printf("%s",f)
+        w.Write(f)
+        r.Body.Close()
+        return
     }
 
-    y, resp := paramCheck("y", r)
-    if resp != nil {
-        w.Write(resp)
+    x, err := paramCheck("x", r)
+    if err != nil {
+        w.Write(err)
+        r.Body.Close()
+        return
     }
 
-    format, resp := paramCheck("f", r)
-    if resp != nil {
+    y, err := paramCheck("y", r)
+    if err != nil {
+        w.Write(err)
+        r.Body.Close()
+        return
+    }
+
+    format, err := paramCheck("f", r)
+    if err != nil {
         format = "json"
     }
 
-    flavor, resp := paramCheck("type", r)
-    if resp != nil {
+    flavor, err = paramCheck("type", r)
+    if err != nil {
         flavor = "poi"
     }
 
-    data, err := fetchData(x,y,flavor)
-    check(err)
+    data, resp := fetchData(x,y,flavor)
+    if resp != nil {
+        check(resp)
+    }
 
     switch format {
       case "json" :
@@ -59,6 +88,8 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
         //out := bytes.NewReader(data)
         //w.Write(data)
     }
+
+    r.Body.Close()
 
     counter.Incr("dem")
     log.Println(counter.Get("dem"),"dems processed, time:",int64(time.Since(start).Seconds()*1e3),"ms")
@@ -154,7 +185,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
              attributes.Value = name
              feature.Attributes = append(feature.Attributes, attributes)
              data.Points = append(data.Points, feature)
-           case "trails", "roads":
+           case "trails", "roads", "rivers":
              var feature Lines
              feature.Name = name
              feature.Points = derivePoints(geom).Points
