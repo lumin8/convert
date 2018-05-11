@@ -1,5 +1,5 @@
 {
-  "poi": [
+  "poi": {
   "trailhead":
     {
       "width": 5,
@@ -18,8 +18,8 @@
       "font" : "OpenSans",
       "fontsize" : 12
     }
-  ],
-  "roads": [
+  },
+  "roads": {
   "primary":
     {
       "width": 12,
@@ -52,8 +52,8 @@
       "font" : "OpenSans",
       "fontsize" : 8
     }
-  ],
-  "trails": [
+  },
+  "trails": {
   "dirt":
     {
       "width": 6,
@@ -78,5 +78,5 @@
       "font" : "OpenSans",
       "fontsize" : 8
     }
-  ]
+  }
 }

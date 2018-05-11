@@ -45,7 +45,6 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
           w.Write([]byte("could not fetch stylesheet"))
         }
         log.Println("stylesheet request")
-        log.Printf("%s",f)
         w.Write(f)
         r.Body.Close()
         return
