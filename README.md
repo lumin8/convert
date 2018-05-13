@@ -33,6 +33,21 @@ Types currently supported:
 
 ## NEARME Styles:  .../nearme/?styles=get
 
+This request will return a json stylesheet of all current and default working styles WRT the nearme service.
+
+Styles currently cover:
+
+POI
+- **Default**
+
+Roads
+- **Primary**
+- **Secondary**
+- **Residential**
+- **Default**
+
+Trails
+- **Default**
 
 ## SAMPLE endpoint: .../sample?get=&did=&token=" -o testsample.json
 
