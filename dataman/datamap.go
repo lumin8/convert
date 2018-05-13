@@ -49,7 +49,8 @@ type Points struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     StyleType string `json:"type" yaml:"type"`
-    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+//    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
     Point []float64 `json:"point" yaml:"point"`
 }
 
@@ -57,7 +58,8 @@ type Lines struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     StyleType string `json:"type" yaml:"type"`
-    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+//    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
     Points []([]float64) `json:"points" yaml:"points"`
 }
 
@@ -65,14 +67,15 @@ type Shapes struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     StyleType string `json:"type" yaml:"type"`
-    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+//    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
+    Attributes []Attributes `json:"attributes" yaml:"attributes"`
     Points []([]float64) `json:"points" yaml:"points"`
 }
 
-//type Attributes struct {
-//    Key interface{} `json:"key" yaml:"key"`
-//    Value interface{} `json:"value" yaml:"value"`
-//}
+type Attributes struct {
+    Key string `json:"key" yaml:"key"`
+    Value string `json:"value" yaml:"value"`
+}
 
 type Input struct {
     Id int `json:"id" yaml:"id"`

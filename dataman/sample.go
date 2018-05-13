@@ -7,17 +7,12 @@ import (
 )
 
 const (
-    // sample locations
-    collection = "tests/samplecollection.json"
+    collection = "samplecollection"
     tests = "tests/"
-    dataset1 = "tests/sampledataset1.json"
-    dataset2 = "tests/sampledataset2.json"
-    dataset3 = "tests/sampledataset3.json"
 )
 
 
 func sampleHandler(w http.ResponseWriter, r *http.Request) {
-    log.Println("sample project requested")
 
     get, err := paramCheck("get", r)
     if err != nil {
@@ -26,28 +21,31 @@ func sampleHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    uid, err := paramCheck("uid", r)
+    token, err := paramCheck("token", r)
     if err != nil {
-        w.Write(err)
-        r.Body.Close()
-        return
+        token = "0"
+        //w.Write(err)
+        //r.Body.Close()
+        //return
     }
 
     did, err := paramCheck("did", r)
     if err != nil {
-        w.Write(err)
-        r.Body.Close()
-        return
+        did = "0"
+        //w.Write(err)
+        //r.Body.Close()
+        //return
     }
 
-    log.Println("user:",uid)
-
+    log.Printf("%v",token)
 
     switch get {
 
       case "collection":
 
-        f, err := ioutil.ReadFile(collection)
+        log.Println("sample collection requested")
+
+        f, err := ioutil.ReadFile(tests + collection + ".json")
         if err != nil {
           log.Printf("%s",err)
         }
@@ -58,7 +56,15 @@ func sampleHandler(w http.ResponseWriter, r *http.Request) {
 
       case "dataset":
 
-        f, err := ioutil.ReadFile(tests + did)
+        if did == "0" {
+          w.Write(err)
+          r.Body.Close()
+          return
+        }
+
+        log.Println("sample dataset",did,"requested")
+
+        f, err := ioutil.ReadFile(tests + did + ".json")
         if err != nil {
           log.Printf("%s",err)
         }
@@ -69,7 +75,7 @@ func sampleHandler(w http.ResponseWriter, r *http.Request) {
 
       default:
 
-        w.Write([]byte("incorrect parameters specified"))
+        w.Write([]byte("please specifiy a 'get' parameter"))
         r.Body.Close()
     }
 }

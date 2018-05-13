@@ -34,21 +34,20 @@ Types currently supported:
 ## NEARME Styles:  .../nearme/?styles=get
 
 
-## SAMPLE endpoing: .../sample/get=dataset&did=sampledataset1.json&uid=" -o testsample.json
+## SAMPLE endpoint: .../sample?get=&did=&token=" -o testsample.json
 
-Datasets currently supported:
-- **sampledataset1.json**
-- **sampledataset3.json**
+Get Options:
+- **dataset**
+- **collection**
 
-UID currently supported:
+Datasets Ids ( DID ) currently supported:
+- **1**
+- **2**
+
+TOKEN currently supported:
 - **any**  *currently auth is not hooked up**
 
 
-Get currently supported:
-- **dataset**
-
-TBD:
-- **collection**
 
 ### TBD
 - **shapes** supported=SOON (building footprints, other random polygons)

@@ -64,6 +64,8 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    //x, y = To4326(x,y)
+
     format, err := paramCheck("f", r)
     if err != nil {
         format = "json"
@@ -201,7 +203,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
       return data, err
     }
 
-    wg := sizedwaitgroup.New(250)
+    wg := sizedwaitgroup.New(100)
     for rows.Next() {
 
       var geom string
@@ -291,8 +293,9 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
 }
 
 
-func parseAttributes (pgfeature *FeatureInfo) []map[string]interface{} { //[][]string {
-    var atts []map[string]interface{}
+func parseAttributes (pgfeature *FeatureInfo) []Attributes { //[]map[string]interface{} {
+    // TBD geojson var atts []map[string]interface{}
+    var atts []Attributes
     for k, v := range pgfeature.geojson.Properties {
       switch v {
         case nil, "", 0:
@@ -305,9 +308,14 @@ func parseAttributes (pgfeature *FeatureInfo) []map[string]interface{} { //[][]s
         case "styletype":
           pgfeature.styletype = fmt.Sprintf("%v",v)
         default:
-            pair := make(map[string]interface{})
-            pair[k] = v
-            atts = append(atts,pair)
+            var attrib Attributes
+            attrib.Key = k
+            attrib.Value = fmt.Sprintf("%v",v)
+            atts = append(atts, attrib)
+
+            //TBD geojson pair := make(map[string]interface{})
+            //TBD geojson pair[k] = v
+            //TBD geojson atts = append(atts, pair)
       }
     }
     return atts
@@ -321,7 +329,7 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
 
     case "Point" :
       var z float64
-      x, y := to3857(pgfeature.geojson.Geometry.Point[0], pgfeature.geojson.Geometry.Point[1])
+      x, y := To3857(pgfeature.geojson.Geometry.Point[0], pgfeature.geojson.Geometry.Point[1])
       if len(pgfeature.geojson.Geometry.Point) < 3 {
          z, _ = getElev(x,y)
       }
@@ -331,7 +339,7 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
     case "LineString" :
       var z float64
       for _, coords := range pgfeature.geojson.Geometry.LineString {
-        x, y := to3857(coords[0], coords[1])
+        x, y := To3857(coords[0], coords[1])
         if len(coords) < 3 {
           z, _ = getElev(x,y)
         }
@@ -342,7 +350,7 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
       var z float64
       for _, coords := range pgfeature.geojson.Geometry.Polygon {
         for _, coord := range coords {
-            x, y := to4326(coord[0], coord[1])
+            x, y := To4326(coord[0], coord[1])
             if len(coord) < 3 {
               z, _ = getElev(x,y)
             }

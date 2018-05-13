@@ -1,0 +1,42 @@
+{
+  "projects": [
+    {
+      "id": 10567,
+      "name": "Trek",
+      "lastUpdated": null,
+      "datasets": [
+        {
+          "id": 1,
+          "name": "Trek Drilling",
+          "center": null,
+          "s2" : null,
+          "lastUpdated": null,
+          "url": "http://map.life:8000/sample?get=dataset&did=1&token="
+        },
+        {
+          "id": 2,
+          "name": "Trek Faults",
+          "center": null,
+          "s2" : null,
+          "lastUpdated": null,
+          "url": "http://map.life:8000/sample?get=dataset&did=2&token="
+        }
+      ]
+    },
+    {
+      "id": 10568,
+      "name": "Page",
+      "lastUpdated": null,
+      "datasets": [
+        {
+          "id": 3,
+          "name": "Page Soil Sampling",
+          "center": null,
+          "s2" : null,
+          "lastUpdated": null,
+          "url": "http://map.life:8000/sample?get=dataset&did=3&token="
+        }
+      ]
+    }
+  ]
+}

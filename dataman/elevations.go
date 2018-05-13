@@ -86,7 +86,7 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 
 func getElev(x float64, y float64) (float64, error) {
     // outputs in meters, works regardless of input projection
-    lon, lat := to4326(x, y)
+    lon, lat := To4326(x, y)
 
     var zstr string
 
@@ -181,7 +181,7 @@ func str2fixed(num string) float64 {
 }
 
 
-func to4326(x float64, y float64) (float64, float64) {
+func To4326(x float64, y float64) (float64, float64) {
     // regardless of inbound, kicks out 4326
     if (x <= 180) && (x >= -180) {
         return x, y
@@ -193,7 +193,7 @@ func to4326(x float64, y float64) (float64, float64) {
 }
 
 
-func to3857(x float64, y float64) (float64, float64) {
+func To3857(x float64, y float64) (float64, float64) {
     // regardless of inbound, kicks out 3857
     if (x > 180) || (x < -180) {
         return x, y

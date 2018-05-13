@@ -13,7 +13,7 @@ import (
 const (
     testjson = "trek/trek_drilldata.json"
     testdata = "trek/trek_drilldata.csv"
-    testurl = "http://mapp.life:8000/data"
+    testurl = "http://map.life:8000/convert"
 )
 
 func check (err error) {

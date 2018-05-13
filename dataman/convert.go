@@ -19,6 +19,8 @@ import (
 
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
+    log.Println("hello?")
+
     start := time.Now()
 
     _, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -67,7 +69,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
         converted = []byte("Sorry, things didn't work out.  Is the format supported?")
     }
 
-    //ioutil.WriteFile("tests/out.json", converted, 0644)
+//    ioutil.WriteFile("tests/out.json", converted, 0644)
     w.Write(converted)
 
     log.Println("total dataset round trip:",int64(time.Since(start).Seconds()*1e3),"ms")
@@ -75,6 +77,8 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) {
+    log.Println("request for a csv conversion")
+
     start := time.Now()
     s := bytes.NewReader(contents)
 
@@ -109,10 +113,12 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
               case "Y": pointxyz.Y, _ = strconv.ParseFloat(value, 64)
               case "Z": pointxyz.Z, _ = strconv.ParseFloat(value, 64)
               default :
-                pair := make(map[string]interface{})
-                pair[headers[i]] = value
-                //attributes.Value = value
-                point.Attributes = append(point.Attributes, pair)
+                var atts Attributes
+                atts.Key = headers[i]
+                atts.Value = fmt.Sprintf("%v",value)
+                //TBD geojson pair := make(map[string]interface{})
+                //TBD geojson pair[headers[i]] = value
+                point.Attributes = append(point.Attributes, atts)
             }
           }
 
