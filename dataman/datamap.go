@@ -1,5 +1,10 @@
 package main
 
+import (
+    "github.com/paulmach/go.geojson"
+    "github.com/golang/geo/s2"
+)
+
 type Projects struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
@@ -43,28 +48,31 @@ type Dem struct {
 type Points struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    StyleType string `json:"type" yaml:"type"`
+    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
     Point []float64 `json:"point" yaml:"point"`
 }
 
 type Lines struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    StyleType string `json:"type" yaml:"type"`
+    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
     Points []([]float64) `json:"points" yaml:"points"`
 }
 
 type Shapes struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
-    Attributes []Attributes `json:"attributes" yaml:"attributes"`
+    StyleType string `json:"type" yaml:"type"`
+    Attributes []map[string]interface{} `json:"attributes" yaml:"attributes"`
     Points []([]float64) `json:"points" yaml:"points"`
 }
 
-type Attributes struct {
-    Key string `json:"key" yaml:"key"`
-    Value string `json:"value" yaml:"value"`
-}
+//type Attributes struct {
+//    Key interface{} `json:"key" yaml:"key"`
+//    Value interface{} `json:"value" yaml:"value"`
+//}
 
 type Input struct {
     Id int `json:"id" yaml:"id"`
@@ -86,3 +94,12 @@ type GeojsonM struct {
     Coords []([]float64) `json:"coordinates" yaml:"coordinates"`
 }
 
+type FeatureInfo struct {
+    geojson     geojson.Feature //G
+    geomtype    string
+    srid        string
+    s2          []s2.CellID
+    tokens      []string
+    name	string
+    styletype	string
+}

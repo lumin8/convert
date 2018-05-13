@@ -14,6 +14,7 @@ import (
     "strconv"
     "time"
     "gopkg.in/yaml.v2"
+//    "github.com/jonas-p/go-shp"
 )
 
 
@@ -58,9 +59,9 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
       case "csv" :
         converted, err = CsvHandler(indataset, data)
         check(err)
-      //TBD case "shp": 
-        //outdataset, err = ShpHandler(indataset, contents)
-      //TBD case "dxf": 
+      //case "shp":
+        //outdataset, err = ShpHandler(indataset, data)
+      //case "dxf": 
         //outdataset, err = DxfHandler(indataset, contents)
       default :
         converted = []byte("Sorry, things didn't work out.  Is the format supported?")
@@ -88,8 +89,6 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
     var headers map[int]string
     headers = make(map[int]string)
 
-    var attributes Attributes
-
     for i, record := range raw {
       var pointxyz Point
       var point Points
@@ -110,9 +109,10 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
               case "Y": pointxyz.Y, _ = strconv.ParseFloat(value, 64)
               case "Z": pointxyz.Z, _ = strconv.ParseFloat(value, 64)
               default :
-                attributes.Key = headers[i]
-                attributes.Value = value
-                point.Attributes = append(point.Attributes, attributes)
+                pair := make(map[string]interface{})
+                pair[headers[i]] = value
+                //attributes.Value = value
+                point.Attributes = append(point.Attributes, pair)
             }
           }
 
@@ -134,4 +134,6 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
     log.Println("csv's processed:",counter.Get("csv"),", time:",int64(time.Since(start).Seconds()*1e3),"ms")
     return converted, err
 }
+
+
 
