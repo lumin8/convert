@@ -4,7 +4,7 @@ This api takes http POST of csv (tbd shp and dxf), and returns json or a struct 
 
 There are currently two principle pieces: main.go and mappings.go, which hold the business end and the struct mappings end of the code project, respectively.
 
-**Current Server Address: http://map.life:8000/**
+**Current Staging Server Address: http://map.life:8000/**
 
 To use:
 - download this repo
@@ -13,12 +13,15 @@ To use:
 - > go run main.go mappings.go  //or
 - > ./make.bash  //compiles the program so it may be run simply by typing ./main
 
+Logging is only currently available if one runs the datapi as ````nohup ./main & disown; tail -f nohup.out````
 
 ## DEM endpoint:  .../dem/?x=&y=
 
 Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], and a format (json), and what comes back will be a DEM in EPSG:3857 approximate 0.06 degrees square surrounding the central xy point.  
 
 DEM is currently set to a 0.03 x 0.03 decimal degree wide grid, which is approximately 3km.
+
+eg: ````curl "http://mapp.life:8000/dem?x=-111.03667&y=45.68407" -o dem.json````
 
 
 ## NEARME endpoint:  .../nearme/?x=&y=&f=&type=
@@ -30,6 +33,13 @@ Types currently supported:
 - **&type=trails**  (trails, paths, hiking routes, etc.)
 - **&type=roads**  (roads, interstates, etc...   this could get intense)
 - **&type=water**  (rivers, streams, etc.)
+
+eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=poi" -o poi.json````
+eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=roads" -o roads.json````
+eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=trails" -o trails.json````
+eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=water" -o water.json````
+
+
 
 ## NEARME Styles:  .../nearme/?styles=get
 
@@ -49,7 +59,7 @@ Roads
 Trails
 - **Default**
 
-## SAMPLE endpoint: .../sample?get=&did=&token=" -o testsample.json
+## SAMPLE endpoint:  .../sample?get=&did=&token=" -o testsample.json
 
 Get Options:
 - **dataset**
@@ -63,12 +73,8 @@ Datasets Ids ( DID ) currently supported:
 TOKEN currently supported:
 - **any**  *currently auth is not hooked up**
 
+eg: ````curl "http://mapp.life:8000/sample?get=collection" -o samplecollection.json````
 
-
-### TBD
-- **shapes** supported=SOON (building footprints, other random polygons)
-
-eg ````curl "http://mapp.life:8000/nearme?x=-111.45&y=45.567&f=json&type=poi" -o nearme.txt````
 ## DATA conversion endpoint:  .../convert/  [multipart file]
 
 Hit this enpoint with a multipart file, one is the map of the data (info) the other is the file itself (file) and it'll give back a converted dataset prepared for Unity / DeepAR according to json structure in config/
@@ -93,3 +99,4 @@ One test currently exists as 'data_test.go'.  This can be run from any machine, 
 Add SHP conversion functionality
 Add DXF conversion functionality
 Handle different Coordinate Systems
+Handle input of EPSG:3857 (utm meters) in addition to the already-accepted EPSG:4326 (lat long)
