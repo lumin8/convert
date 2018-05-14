@@ -162,6 +162,7 @@ func getDem(x string, y string) (Datasets, error) {
       Y := str2fixed(values[1])
       Z := str2fixed(values[2])
       point.Point = append(point.Point, X, Y, Z)
+      point.StyleType = "dem"
       dem.Points = append(dem.Points, point)
     }
 

@@ -120,7 +120,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
 
     switch flavor {
       case "trails", "rivers" :
-        meters = "2000"
+        meters = "1500"
       case "roads" :
         meters = "1000"
       case "shapes" :
