@@ -3,37 +3,37 @@
     {
       "id": 10567,
       "name": "Trek",
-      "lastUpdated": null,
+      "lastUpdated": "2018-05-13T18:25:43.511Z",
       "datasets": [
         {
           "id": 1,
-          "name": "Trek Drilling",
-          "center": null,
-          "s2" : null,
-          "lastUpdated": null,
+          "name": "Trek Drill Results",
+          "center": [-14615547, 7772675],
+          "s2" : "540868d",
+          "lastUpdated": "2018-05-13T18:25:43.511Z",
           "url": "http://map.life:8000/sample?get=dataset&did=1&token="
         },
         {
           "id": 2,
           "name": "Trek Faults",
-          "center": null,
-          "s2" : null,
-          "lastUpdated": null,
+          "center": [-14616245,7773307],
+          "s2" : "540868d",
+          "lastUpdated": "2018-05-13T18:25:43.511Z",
           "url": "http://map.life:8000/sample?get=dataset&did=2&token="
         }
       ]
     },
     {
       "id": 10568,
-      "name": "Page",
-      "lastUpdated": null,
+      "name": "Page Project",
+      "lastUpdated": "2018-05-13T18:25:43.511Z",
       "datasets": [
         {
           "id": 3,
-          "name": "Page Soil Sampling",
-          "center": null,
-          "s2" : null,
-          "lastUpdated": null,
+          "name": "Soil Sampling",
+          "center": [-13243906,4624755],
+          "s2" : "8097c61",
+          "lastUpdated": "2018-05-13T18:25:43.511Z",
           "url": "http://map.life:8000/sample?get=dataset&did=3&token="
         }
       ]

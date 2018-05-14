@@ -116,6 +116,8 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
       return data, cerr
     }
 
+    var processes = 150 // number concurrent threads per feature flavor
+
     switch flavor {
       case "trails", "rivers" :
         meters = "2000"
@@ -125,6 +127,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
         meters = "1000"
       case "poi" :
         meters = "10000"
+        processes = 50
       default :
         //errors.New("Either no data exists, or your request is not supported")
         meters = "10000"
@@ -203,7 +206,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
       return data, err
     }
 
-    wg := sizedwaitgroup.New(100)
+    wg := sizedwaitgroup.New(processes)
     for rows.Next() {
 
       var geom string
@@ -241,6 +244,10 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
           go func() {
             defer wg.Done()
             feature.Point = derivePoints(&pgfeature).Points[0]
+            if len(feature.Point) < 1 {
+              wg.Done()
+              return
+            }
           }()
           go func() {
             defer wg.Done()
@@ -250,6 +257,7 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
           }()
           wg.Wait()
           data.Points = append(data.Points, feature)
+
         case "LineString":
           var wg sync.WaitGroup
           var feature Lines
@@ -263,9 +271,14 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
           go func() {
             defer wg.Done()
             feature.Points = derivePoints(&pgfeature).Points
+            if len(feature.Points) < 1 {
+              wg.Done()
+              return
+            }
           }()
           wg.Wait()
           data.Lines = append(data.Lines, feature)
+
         case "Polygon":
           var wg sync.WaitGroup
           var feature Shapes
@@ -279,6 +292,10 @@ func fetchData(x string, y string, flavor string) (Datasets, error) {
           go func() {
             defer wg.Done()
             feature.Points = derivePoints(&pgfeature).Points
+            if len(feature.Points) < 1 {
+              wg.Done()
+              return
+            }
           }()
           wg.Wait()
           data.Shapes = append(data.Shapes, feature)
@@ -298,7 +315,7 @@ func parseAttributes (pgfeature *FeatureInfo) []Attributes { //[]map[string]inte
     var atts []Attributes
     for k, v := range pgfeature.geojson.Properties {
       switch v {
-        case nil, "", 0:
+        case nil, "", 0, "0":
           delete(pgfeature.geojson.Properties, k)
           continue
       }
@@ -330,6 +347,9 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
     case "Point" :
       var z float64
       x, y := To3857(pgfeature.geojson.Geometry.Point[0], pgfeature.geojson.Geometry.Point[1])
+      if (x == 0 && y == 0) {
+        return coordarray
+      }
       if len(pgfeature.geojson.Geometry.Point) < 3 {
          z, _ = getElev(x,y)
       }
@@ -340,6 +360,9 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
       var z float64
       for _, coords := range pgfeature.geojson.Geometry.LineString {
         x, y := To3857(coords[0], coords[1])
+        if (x == 0 && y == 0) {
+          continue
+        }
         if len(coords) < 3 {
           z, _ = getElev(x,y)
         }
@@ -350,7 +373,10 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
       var z float64
       for _, coords := range pgfeature.geojson.Geometry.Polygon {
         for _, coord := range coords {
-            x, y := To4326(coord[0], coord[1])
+            x, y := To3857(coord[0], coord[1])
+            if (x == 0 && y == 0) {
+              continue
+            }
             if len(coord) < 3 {
               z, _ = getElev(x,y)
             }
