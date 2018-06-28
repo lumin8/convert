@@ -98,6 +98,7 @@ type GeojsonM struct {
 }
 
 type FeatureInfo struct {
+    id		int
     geojson     geojson.Feature //G
     geomtype    string
     srid        string

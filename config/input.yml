@@ -1,9 +1,9 @@
 ---
-id:     #int (uid)
-xfield: #string (name of incoming X field) 
-yfield: #string (name of incoming Y field)
-zfield: #string (name of incoming Z field)
-srs:    #int (4 digit code of projection system)
-units:  #string default 'meters'
+ownerid: #the id of who is doing the work
+orgid: #IF the owner is a member of an org, which org assign this to?/
 format: #string : csv, shp or dxf
-geom:   #string : points, lines, or shapes
+xfield: #string (name of incoming X field IF csv) 
+yfield: #string (name of incoming Y field IF csv)
+zfield: #string (name of incoming Z field IF csv)
+srs:    #int (4 digit code of projection system)
+units:  #elevation units, set string default 'meters'
