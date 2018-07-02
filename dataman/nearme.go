@@ -15,6 +15,7 @@ import (
     "github.com/paulmach/go.geojson"
     _ "github.com/lib/pq"
     "github.com/remeh/sizedwaitgroup"
+    "github.com/golang/geo/s2"
 )
 
 const (
@@ -52,19 +53,22 @@ func nearmeHandler(w http.ResponseWriter, r *http.Request) {
 
     x, err := paramCheck("x", r)
     if err != nil {
-        w.Write(err)
-        r.Body.Close()
-        return
+        log.Println(err)
     }
 
     y, err := paramCheck("y", r)
     if err != nil {
-        w.Write(err)
-        r.Body.Close()
-        return
+        log.Println(err)
     }
 
-    //x, y = To4326(x,y)
+    s2key, err := paramCheck("s2", r)
+    if err != nil {
+        log.Println(err)
+    }
+
+    if len(s2key) > 0 {
+      x,y = s2xy(s2key)
+    }
 
     format, err := paramCheck("f", r)
     if err != nil {
@@ -387,4 +391,21 @@ func derivePoints(pgfeature *FeatureInfo) Pointarray {
 
     }
     return coordarray
+}
+
+
+func s2xy (token string) (string, string) {
+    s2cellid := s2.CellIDFromToken(token)
+    s2cell := s2.CellFromCellID (s2cellid)
+    //Scott TBD add area param
+    //area := s2cell.ApproxArea()
+    point := s2cell.Center()
+    ll := s2.LatLngFromPoint(point)
+    xa := ll.Lng //Longitude()
+    ya := ll.Lat //itude()
+    xd := xa.Degrees()
+    yd := ya.Degrees()
+    x := fmt.Sprintf("%v",xd)
+    y := fmt.Sprintf("%v",yd)
+    return x, y
 }

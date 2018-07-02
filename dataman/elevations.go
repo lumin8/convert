@@ -5,6 +5,7 @@ import (
      "bufio"
      "encoding/json"
      "errors"
+     "fmt"
      "github.com/paulmach/go.geo"
      "log"
      "net/http"
@@ -40,12 +41,12 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
 
     x, resp := paramCheck("x", r)
     if resp != nil {
-        w.Write(resp)
+        log.Println(resp)
     }
 
     y, resp := paramCheck("y", r)
     if resp != nil {
-        w.Write(resp)
+        log.Println(resp)
     }
 
     format, resp := paramCheck("f", r)
@@ -53,8 +54,23 @@ func demHandler(w http.ResponseWriter, r *http.Request) {
         format = "json"
     }
 
+    s2key, resp := paramCheck("s2", r)
+    if resp != nil {
+        log.Println(resp)
+    }
+
+    if len(s2key) > 0 {
+      x,y = s2xy(s2key)
+    }
+
+    if len(x) == 0 || len(y) == 0 {
+      w.Write([]byte("sorry, x y or s2 token are required"))
+    }
+
     data, err := getDem(x,y)
-    check(err)
+    if err != nil {
+      w.Write([]byte(fmt.Sprintf("%v",err)))
+    }
 
     //TBD hash support
     /***hashes := r.URL.Query()["hash"]
@@ -204,4 +220,5 @@ func To3857(x float64, y float64) (float64, float64) {
       return mercPoint[0],mercPoint[1]
     }
 }
+
 
