@@ -4,9 +4,11 @@
   "lastUpdated": null,
   "url": null,
   "center": [
+
   ],
-  "bbox": null,
-  "s2hash": null,
+  "s2hash": [
+
+  ],
   "points": [
     {
       "id": null,
@@ -17,8 +19,9 @@
           "value": null
         }
       ],
-      "points": [
+      "point": [
         [
+
         ]
       ]
     }
@@ -35,6 +38,7 @@
       ],
       "points": [
         [
+
         ]
       ]
     }
@@ -51,6 +55,7 @@
       ],
       "points": [
         [
+
         ]
       ]
     }
