@@ -8,8 +8,8 @@
         {
           "id": 1,
           "name": "Trek Drill Results",
-          "center": [-14615547, 7772675],
-          "s2" : "540868d",
+          "center": [{"x":-1.46158975e+07,"y":7.772727e+06,"z":1272}],
+          "s2" : ["5a980fd8","5a980fd9"],
           "lastUpdated": "2018-05-13T18:25:43.511Z",
           "url": "http://map.life:8000/sample?get=dataset&did=1&token="
         },

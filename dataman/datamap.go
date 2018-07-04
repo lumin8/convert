@@ -9,7 +9,7 @@ type Projects struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    S2hash string `json:"s2hash" yaml:"s2hash"`
+    S2 []string `json:"s2" yaml:"s2"`
     Dem []Dem `json:"dem" yaml:"dem"`
     Datasets []Datasets `json:"datasets" yaml:"datasets"`
 }
@@ -20,8 +20,7 @@ type Datasets struct {
     Url string `json:"dataurl" yaml:"dataurl"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
     Center []Point `json:"center" yaml:"center"`
-    Bbox string `json:"bbox" yaml:"bbox"`
-    S2hash string `json:"id" yaml:"id"`
+    S2 []string `json:"s2" yaml:"s2"`
     Points []Points `json:"points" yaml:"points"`
     Lines []Lines `json:"lines" yaml:"lines"`
     Shapes []Shapes `json:"shapes" yaml:"shapes"`
@@ -41,7 +40,7 @@ type Dem struct {
     Id string `json:"id" yaml:"id"`
     Name string `json:"name" yaml:"name"`
     Updated string `json:"lastUpdated" yaml:"lastUpdated"`
-    S2hash string `json:"s2hash" yaml:"s2hash"`
+    S2 string `json:"s2" yaml:"s2"`
     Points []([]float64) `json:"points" yaml:"points"`
 }
 

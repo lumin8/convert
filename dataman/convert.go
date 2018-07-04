@@ -14,13 +14,12 @@ import (
     "strconv"
     "time"
     "gopkg.in/yaml.v2"
+    "github.com/golang/geo/s2"
 //    "github.com/jonas-p/go-shp"
 )
 
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
-    log.Println("hello?")
-
     start := time.Now()
 
     _, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -90,8 +89,8 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
     zfield := indataset.Zfield
 
     var outdataset Datasets
-    var headers map[int]string
-    headers = make(map[int]string)
+    headers := make(map[int]string)
+    bbox := make(map[string]float64)
 
     for i, record := range raw {
       var pointxyz Point
@@ -107,11 +106,15 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
             }
           }
         default :
+
           for i, value := range record {
             switch headers[i] {
               case "X": pointxyz.X, _ = strconv.ParseFloat(value, 64)
               case "Y": pointxyz.Y, _ = strconv.ParseFloat(value, 64)
               case "Z": pointxyz.Z, _ = strconv.ParseFloat(value, 64)
+
+              MinMax(bbox, pointxyz.X, pointxyz.Y)
+
               default :
                 var atts Attributes
                 atts.Key = headers[i]
@@ -135,6 +138,16 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
       outdataset.Points = append(outdataset.Points, point)
     }
 
+    // configure the center point... in 4326
+    var c Point
+    c.X = bbox["rx"]-(bbox["rx"]-bbox["lx"])/2
+    c.Y = bbox["uy"]-(bbox["uy"]-bbox["ly"])/2
+    c.Z, _ = getElev(c.X, c.Y)
+    outdataset.Center = append(outdataset.Center,c)
+
+    // configure the s2 array... in 4326
+    outdataset.S2 = s2covering(bbox)
+
     converted, err = json.Marshal(outdataset)
     counter.Incr("csv")
     log.Println("csv's processed:",counter.Get("csv"),", time:",int64(time.Since(start).Seconds()*1e3),"ms")
@@ -142,4 +155,73 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 }
 
 
+func MinMax (bbox map[string]float64, X float64, Y float64) {
+    _, ok := bbox["lx"]
+    if ! ok {
+      bbox["lx"]=X
+      bbox["rx"]=X
+      bbox["ly"]=Y
+      bbox["uy"]=Y
+    }
 
+    switch {
+      case X < bbox["lx"]:
+        bbox["lx"]=X
+      case X > bbox["rx"]:
+        bbox["ux"]=X
+    }
+
+    switch {
+      case Y < bbox["ly"]:
+        bbox["ly"]=Y
+      case Y > bbox["uy"]:
+        bbox["uy"]=Y
+    }
+}
+
+
+func s2covering (bbox map[string]float64) []string {
+    var s2hash []string
+    var pts []s2.Point
+
+    rx, uy := To4326(bbox["rx"],bbox["uy"])
+    lx, ly := To4326(bbox["lx"],bbox["ly"])
+    cz, err := getElev(bbox["rx"],bbox["uy"])
+    if err != nil {
+      fmt.Println(err)
+    }
+
+    fmt.Println("%f",lx,ly,rx,uy)
+
+    pts = append(pts,s2.PointFromCoords(rx,uy,cz))
+    pts = append(pts,s2.PointFromCoords(lx,uy,cz))
+    pts = append(pts,s2.PointFromCoords(lx,ly,cz))
+    pts = append(pts,s2.PointFromCoords(rx,ly,cz))
+
+    loop := s2.LoopFromPoints(pts)
+    covering := loop.CellUnionBound()
+
+    for _, cellid := range covering {
+      token := cellid.ToToken()
+      if len(token)  > 8 {
+        runes := []rune(token)
+        token = string(runes[0:8])
+      }
+      if tokencheck(token, s2hash) == false {
+        fmt.Printf(token)
+        s2hash = append(s2hash, token)
+      }
+    }
+
+    return s2hash
+}
+
+
+func tokencheck(token string, list []string) bool {
+    for _, b := range list {
+      if b == token {
+        return true
+      }
+    }
+    return false
+}
