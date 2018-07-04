@@ -6,5 +6,7 @@
   "yfield": null,
   "zfield": null,
   "srs": null,
-  "units": null
+  "units": null,
+  "inurl": null,
+  "outurl": null
 }

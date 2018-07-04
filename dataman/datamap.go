@@ -84,6 +84,8 @@ type Input struct {
     Srs int `json:"srs" yaml:"srs"`
     Units string `json:"units" yaml:"units"`
     Format string `json:"format" yaml:"format"`
+    inurl string `json:"inurl" yaml:"inurl"`
+    outurl string `json:"outurl" yaml:"outurl"` 
 }
 
 type GeojsonS struct {

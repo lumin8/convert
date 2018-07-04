@@ -7,3 +7,5 @@ yfield: #string (name of incoming Y field IF csv)
 zfield: #string (name of incoming Z field IF csv)
 srs:    #int (4 digit code of projection system)
 units:  #elevation units, set string default 'meters'
+inurl:  # url of the ingress data
+outurl: # url of the egress data
