@@ -4,11 +4,12 @@ This api takes http POST of csv (tbd shp and dxf), and returns json or a struct 
 
 There are currently two principle pieces: main.go and mappings.go, which hold the business end and the struct mappings end of the code project, respectively.
 
-**Current Staging Server Address: http://map.life:8000/**
+**Current Staging Server Address: http://data.map.life/**
 
 To use:
 - download this repo
 - ensure port 8000 is open (or change the config of the port in the const of main.go)
+- set nginx or apache/whatever to proxy to 127.0.0.1:8000
 - set your GOPATH  `export GOPATH=$HOME/go`
 - > go run main.go mappings.go  //or
 - > ./make.bash  //compiles the program so it may be run simply by typing ./main
@@ -21,7 +22,7 @@ Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphe
 
 DEM is currently set to a 0.03 x 0.03 decimal degree wide grid, which is approximately 3km.
 
-eg: ````curl "http://mapp.life:8000/dem?x=-111.03667&y=45.68407" -o dem.json````
+eg: ````curl "http://data.map.life/dem?x=-111.03667&y=45.68407" -o dem.json````
 
 
 ## NEARME endpoint:  .../nearme/?x=&y=&f=&type=
@@ -34,10 +35,10 @@ Types currently supported:
 - **&type=roads**  (roads, interstates, etc...   this could get intense)
 - **&type=water**  (rivers, streams, etc.)
 
-eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=poi" -o poi.json````
-eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=roads" -o roads.json````
-eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=trails" -o trails.json````
-eg: ````curl "http://mapp.life:8000/nearme?x=-111.03667&y=45.68407&f=json&type=water" -o water.json````
+eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=poi" -o poi.json````
+eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=roads" -o roads.json````
+eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=trails" -o trails.json````
+eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=water" -o water.json````
 
 
 
@@ -73,7 +74,7 @@ Datasets Ids ( DID ) currently supported:
 TOKEN currently supported:
 - **any**  *currently auth is not hooked up**
 
-eg: ````curl "http://mapp.life:8000/sample?get=collection" -o samplecollection.json````
+eg: ````curl "http://data.map.life/sample?get=collection" -o samplecollection.json````
 
 ## DATA conversion endpoint:  .../convert/  [multipart file]
 
