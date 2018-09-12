@@ -2,21 +2,41 @@ package main
 
 import (
     "database/sql"
-    "encoding/json"
     "errors"
     "fmt"
+    "gopkg.in/yaml.v2"
+    "io"
     "io/ioutil"
     "log"
     "net/http"
-    "os/user"
-    _ "github.com/lib/pg"
+    _ "github.com/lib/pq"
 )
 
 const (
-    pgcreds = "/.pgpass"
+    cloudsqlcreds = "/home/scott/cloudsqlcreds.yml"
     dbname = "layers"
     library = "catalog"
 )
+
+type CloudSqlCreds struct {
+    Password	string  `yaml:"password"`
+    Host	string  `yaml:"host"`
+    User	string  `yaml:"user"`
+}
+
+
+func getCloudCreds() CloudSqlCreds {
+    var creds CloudSqlCreds
+
+    ymlcreds, err := ioutil.ReadFile(cloudsqlcreds)
+    if err != nil {
+      log.Printf("no cloud sql creds could be found, you'll need these for fetching data")
+    }
+
+    yaml.Unmarshal(ymlcreds, &creds)
+
+    return creds
+}
 
 
 func fetchHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,120 +57,132 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
     //}
 
     org, err := paramCheck("org", r)
-    if err = nil {
-        fetchOrg(org)
+    if err == nil {
+        data, err := fetchOrg(org)
+        if err != nil {
+          log.Printf("%s",err.Error())
+          w.Write([]byte(err.Error()))
+          return
+        }
+        w.Write([]byte(data))
         r.Body.Close()
         return
     }
 
-    did, err := paramCheck("did", r)
-    if err != nil {
-        w.Write([]byte("please specify a dataset id"))
+    lid, err := paramCheck("lid", r)
+    if err != nil || lid == "" {
+        w.Write([]byte("please specify a dataset layer id '&lid='"))
         r.Body.Close()
         return
     }
 
     format, err := paramCheck("format", r)
-    if err != nil {
-        w.Write([]byte("please specify a correct file format"))
+    if err != nil || format == "" {
+        w.Write([]byte("please specify a correct file format '&format=' "))
         r.Body.Close()
         return
     }
 
-    url, err := fetchDid(did,format)
-    if err != nil {
-        w.Write(err)
+    url, cerr := fetchUrl(lid, format)
+    if cerr != nil {
+        w.Write([]byte(cerr.Error()))
         r.Body.Close()
         return
     }
 
-    resp, err := http.Get(url)
-    io.Copy(resp,r.Body)
+    log.Println("about to fetch the data")
+
+    data, cerr := http.Get(url)
+    if cerr != nil {
+        log.Printf("%s",cerr.Error())
+        response := fmt.Sprintf("Could not fetch url: %s",url)
+        w.Write([]byte(response))
+        r.Body.Close()
+        return
+    }
+
+    defer data.Body.Close()
+
+    io.Copy(w,data.Body)
     r.Body.Close()
 }
 
-func fetchOrg(org string) string error {
-    usr, _ := user.Current()
-    pgpass := usr.HomeDir + pgcreds
+
+func fetchOrg(org string) (string, error) {
     var data string
 
-    if _, err := os.Stat(pgpass); err !=  nil {
-      err = errors.New("Missing or misconfigured credentials pgpass specified in the host's home directory.")
-      return err
-    }
+    creds := getCloudCreds()
+    dbinfo := fmt.Sprintf("dbname=%s sslmode=disable user=%s host=%s password=%s", dbname, creds.User, creds.Host, creds.Password)
 
-    dbinfo := fmt.Sprintf("dbname=%s sslmode=disable", dbname)
     db, err := sql.Open("postgres", dbinfo)
     if err != nil {
       err = errors.New("Could not establish a connection with the host")
-      return _, err
+      return "", err
     }
     defer db.Close()
 
     err = db.Ping()
     if err != nil {
-      err = errors.New("Could not establish a connection with the dataset")
-      return _, err
+      err = errors.New("Could not establish a connection with the database")
+      return "", err
     }
 
     var subquery string
 
-    if org is nil {
-      subquery = fmt.Sprintf("select org,name,did,formats from %s",library)
-    } else {
-      subquery = fmt.Sprintf("select org,name,did,formats from %s where organization like '%s'",library,org)
+    switch org {
+      case org:
+        subquery = fmt.Sprintf("select organization,name,lid,formats from %s where organization = '%s'",library,org)
+      default:
+        subquery = fmt.Sprintf("select organization,name,lid,formats from %s",library)
     }
 
     query := fmt.Sprintf("select array_to_json(array_agg(row_to_json(t))) from ( %s ) t",subquery)
 
-    err = db.QueryRow(query,1).Scan(&data)
+    log.Printf(query)
+
+    row := db.QueryRow(query)
+    err = row.Scan(&data)
     if err != nil {
+      log.Printf("%v",err.Error())
       err = errors.New("No results found")
-      return _, err
+      return "", err
     }
 
-    return data, _
+    return data, nil
 }
 
 
-func fetchDid(did int, format string) string error {
-    usr, _ := user.Current()
-    pgpass := usr.HomeDir + pgcreds
+func fetchUrl (lid string, format string) (string, error) {
     var url string
 
-    if _, err := os.Stat(pgpass); err !=  nil {
-      err = errors.New("Missing or misconfigured credentials pgpass specified in the host's home directory.")
-      return err
-    }
+    creds := getCloudCreds()
+    dbinfo := fmt.Sprintf("dbname=%s sslmode=disable user=%s host=%s password=%s", dbname, creds.User, creds.Host, creds.Password)
 
-    dbinfo := fmt.Sprintf("dbname=%s sslmode=disable", dbname)
     db, err := sql.Open("postgres", dbinfo)
     if err != nil {
       err = errors.New("Could not establish a connection with the host")
-      return _, err
+      return "", err
     }
     defer db.Close()
 
     err = db.Ping()
     if err != nil {
-      err = errors.New("Could not establish a connection with the dataset")
-      return _, err
+      err = errors.New("Could not establish a connection with the database")
+      return "", err
     }
 
     // eg. mapurl, shpurl, csvurl, gsheeturl
     furl := format + "url"
 
-    query := fmt.Sprintf("select %s from %s where did = '%s' limit 1",furl,library,did)
+    query := fmt.Sprintf("select %s from %s where lid = %s limit 1",furl,library,lid)
+    log.Printf("%s",query)
+
+    err = db.QueryRow(query).Scan(&url)
     if err != nil {
+      log.Printf("ola %s",err.Error())
       err = errors.New("No results found")
-      return _, err
+      return "", err
     }
 
-    err = db.QueryRow(query,1).Scan(&url)
-    if err != nil {
-      err = errors.New("No results found")
-      return _, err
-    }
-
-    return url, _
+    return url, nil
 }

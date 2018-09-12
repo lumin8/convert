@@ -40,8 +40,6 @@ eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=ro
 eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=trails" -o trails.json````
 eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=water" -o water.json````
 
-
-
 ## NEARME Styles:  .../nearme/?styles=get
 
 This request will return a json stylesheet of all current and default working styles WRT the nearme service.
@@ -59,6 +57,19 @@ Roads
 
 Trails
 - **Default**
+
+## FETCH endpoint: ../fetch?org=  or ../fetch?lid=&format=
+
+This endpoint, for Map.Life, fetches a _list_ of all datasets associated with an organization and returns a json object that can be parsed.   If org is specified, but left blank, it will fetch a list of all datasets for all organizations.
+
+If org is unspecified, and lid (layer id) and format (csv, shp, map, gsheet) are specified, the endpoint will stream that exact data.  
+**NOTE** it is up to the WEB CLIENT or whoever is streaming the data to CREATE A FILENAME using information from the header specified with the http request.
+
+The datasets themselves are stored in a google storage bucket, whose url's and locations are also kept secret in the backend.  The only url's that will be exposed to the end user are the map url (which will also be behind another proxy, so this is ok), and the gsheets url.  Gsheets will need to have some sort of authorization on it, not sure yet how this is going to work.
+
+````curl "http://data.map.life/fetch?org=Battery+Mineral+Resources" -o test.json````
+````curl "http://data.map.life/fetch?lid=99999&format=csv" -o test.csv````
+
 
 ## SAMPLE endpoint:  .../sample?get=&did=&token=" -o testsample.json
 

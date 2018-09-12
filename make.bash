@@ -120,7 +120,7 @@ function build ()
     fi
 
     logit "Building for ${os}:${arch}"
-    run "go build dataman/main.go dataman/convert.go dataman/datamap.go dataman/elevations.go dataman/nearme.go dataman/sample.go"
+    run "go build dataman/main.go dataman/convert.go dataman/datamap.go dataman/elevations.go dataman/fetch.go dataman/nearme.go dataman/sample.go"
     local rc=$?
     logit "Building for ${os}:${arch}: done"
 
