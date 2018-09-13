@@ -1,3 +1,5 @@
+package config
+
 type Projects struct {
 	Dataset []struct {
 		ID          interface{} `json:"id"`

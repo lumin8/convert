@@ -1,82 +1,80 @@
 package main
 
 import (
-    "io/ioutil"
-    "log"
-    "net/http"
+	"io/ioutil"
+	"log"
+	"net/http"
 )
 
 const (
-    collection = "samplecollection"
-    tests = "tests/"
+	collection = "samplecollection"
+	tests      = "tests/"
 )
-
 
 func sampleHandler(w http.ResponseWriter, r *http.Request) {
 
-    get, err := paramCheck("get", r)
-    if err != nil {
-        w.Write(err)
-        r.Body.Close()
-        return
-    }
+	get, err := paramCheck("get", r)
+	if err != nil {
+		w.Write(err)
+		r.Body.Close()
+		return
+	}
 
-    token, err := paramCheck("token", r)
-    if err != nil {
-        token = "0"
-        //w.Write(err)
-        //r.Body.Close()
-        //return
-    }
+	token, err := paramCheck("token", r)
+	if err != nil {
+		token = "0"
+		//w.Write(err)
+		//r.Body.Close()
+		//return
+	}
 
-    did, err := paramCheck("did", r)
-    if err != nil {
-        did = "0"
-        //w.Write(err)
-        //r.Body.Close()
-        //return
-    }
+	did, err := paramCheck("did", r)
+	if err != nil {
+		did = "0"
+		//w.Write(err)
+		//r.Body.Close()
+		//return
+	}
 
-    log.Printf("%v",token)
+	log.Printf("%v", token)
 
-    switch get {
+	switch get {
 
-      case "collection":
+	case "collection":
 
-        log.Println("sample collection requested")
+		log.Println("sample collection requested")
 
-        f, err := ioutil.ReadFile(tests + collection + ".json")
-        if err != nil {
-          log.Printf("%s",err)
-        }
+		f, err := ioutil.ReadFile(tests + collection + ".json")
+		if err != nil {
+			log.Printf("%s", err)
+		}
 
-        w.Write(f)
+		w.Write(f)
 
-        r.Body.Close()
+		r.Body.Close()
 
-      case "dataset":
+	case "dataset":
 
-        if did == "0" {
-          w.Write(err)
-          r.Body.Close()
-          return
-        }
+		if did == "0" {
+			w.Write(err)
+			r.Body.Close()
+			return
+		}
 
-        log.Println("sample dataset",did,"requested")
+		log.Println("sample dataset", did, "requested")
 
-        f, err := ioutil.ReadFile(tests + did + ".json")
-        if err != nil {
-          log.Printf("%s",err)
-        }
+		f, err := ioutil.ReadFile(tests + did + ".json")
+		if err != nil {
+			log.Printf("%s", err)
+		}
 
-        w.Write(f)
+		w.Write(f)
 
-        r.Body.Close()
+		r.Body.Close()
 
-      default:
+	default:
 
-        w.Write([]byte("please specifiy a 'get' parameter"))
-        r.Body.Close()
-    }
+		w.Write([]byte("please specifiy a 'get' parameter"))
+		r.Body.Close()
+	}
 }
-
