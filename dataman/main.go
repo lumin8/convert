@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -62,7 +61,6 @@ func New(text string) error {
 
 func main() {
 	go readCount()
-	os.Setenv("GOPATH", gopath)
 
 	m := http.NewServeMux()
 
