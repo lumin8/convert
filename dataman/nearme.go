@@ -28,7 +28,7 @@ const (
 	rivers = "rivers"
 
 	// style file
-	styles = "config/styles.json"
+	styles = "../config/styles.json"
 
 	pgcreds = "/.pgpass"
 )

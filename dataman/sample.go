@@ -8,7 +8,7 @@ import (
 
 const (
 	collection = "samplecollection"
-	tests      = "tests/"
+	tests      = "../tests/"
 )
 
 func sampleHandler(w http.ResponseWriter, r *http.Request) {
