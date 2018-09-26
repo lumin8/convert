@@ -1,6 +1,7 @@
 package main
 
 import (
+        "cloud.google.com/go/storage"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+        "strings"
+        "time"
 
 	_ "github.com/lib/pq"
 	"gopkg.in/yaml.v2"
@@ -15,6 +18,7 @@ import (
 
 const (
 	cloudsqlcreds = "/home/scott/cloudsqlcreds.yml"
+        gskey       = "/home/scott/gskey.pem"
 	dbname        = "layers"
 	library       = "catalog"
 )
@@ -23,6 +27,8 @@ type CloudSqlCreds struct {
 	Password string `yaml:"password"`
 	Host     string `yaml:"host"`
 	User     string `yaml:"user"`
+        GSid     string `yaml:"googleaccessid"`
+        GSkey    string `yaml:"privatekey"`
 }
 
 func getCloudCreds() CloudSqlCreds {
@@ -82,7 +88,7 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, cerr := fetchUrl(lid, format)
+	url, cerr := fetchLocation(lid, format)
 	if cerr != nil {
 		w.Write([]byte(cerr.Error()))
 		r.Body.Close()
@@ -91,7 +97,7 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("about to fetch the data")
 
-	data, cerr := http.Get(url)
+	data, cerr := http.Get(*url)
 	if cerr != nil {
 		log.Printf("%s", cerr.Error())
 		response := fmt.Sprintf("Could not fetch url: %s", url)
@@ -128,10 +134,10 @@ func fetchOrg(org string) (string, error) {
 	var subquery string
 
 	switch org {
-	case org:
+	case "*":
+                subquery = fmt.Sprintf("select organization,name,lid,formats from %s", library)
+        default:
 		subquery = fmt.Sprintf("select organization,name,lid,formats from %s where organization = '%s'", library, org)
-	default:
-		subquery = fmt.Sprintf("select organization,name,lid,formats from %s", library)
 	}
 
 	query := fmt.Sprintf("select array_to_json(array_agg(row_to_json(t))) from ( %s ) t", subquery)
@@ -149,7 +155,7 @@ func fetchOrg(org string) (string, error) {
 	return data, nil
 }
 
-func fetchUrl(lid string, format string) (string, error) {
+func fetchLocation(lid string, format string) (*string, error) {
 	var url string
 
 	creds := getCloudCreds()
@@ -158,14 +164,14 @@ func fetchUrl(lid string, format string) (string, error) {
 	db, err := sql.Open("postgres", dbinfo)
 	if err != nil {
 		err = errors.New("Could not establish a connection with the host")
-		return "", err
+		return &url, err
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
 		err = errors.New("Could not establish a connection with the database")
-		return "", err
+		return &url, err
 	}
 
 	// eg. mapurl, shpurl, csvurl, gsheeturl
@@ -178,8 +184,41 @@ func fetchUrl(lid string, format string) (string, error) {
 	if err != nil {
 		log.Printf("ola %s", err.Error())
 		err = errors.New("No results found")
-		return "", err
+		return &url, err
 	}
 
-	return url, nil
+        err = getSignedURL(&url)
+        if err != nil {
+                return &url, err
+        }
+
+	return &url, nil
+}
+
+func getSignedURL(url *string) (error) {
+        pkey, err := ioutil.ReadFile(gskey)
+        if err != nil {
+                return err
+        }
+
+        creds := getCloudCreds()
+
+        *url = strings.Replace(*url, "gs://data.map.life/","", -1)
+
+        log.Printf("fetching a signed url for %s",*url)
+
+        gsurl, err := storage.SignedURL("data.map.life", *url, &storage.SignedURLOptions{
+                GoogleAccessID:	creds.GSid,
+                PrivateKey:	pkey,
+                Method:		"GET",
+                Expires:	time.Now().Add(15 * time.Minute),
+        })
+
+        *url = gsurl
+
+        if err != nil {
+                log.Printf(err.Error())
+                return err
+        }
+        return nil
 }
