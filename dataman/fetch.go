@@ -187,9 +187,11 @@ func fetchLocation(lid string, format string) (*string, error) {
 		return &url, err
 	}
 
-        err = getSignedURL(&url)
-        if err != nil {
-                return &url, err
+        if strings.Contains(url, "gs://") {
+		err = getSignedURL(&url)
+		if err != nil {
+			return &url, err
+		}
         }
 
 	return &url, nil
