@@ -97,12 +97,8 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 
         switch format {
         case "gsheet":
-                //w.Header().Set("Content-Type","octet-stream")
-                //w.Header().Add("Content-Disposition","inline; filename=" + layername)
                 log.Printf("%s", *url)
                 http.Redirect(w,r,*url,http.StatusSeeOther)
-                //w.Write([]byte(*url))
-                //io.Copy(w, *url)
                 r.Body.Close()
                 return
         case "csv":
