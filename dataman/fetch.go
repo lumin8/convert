@@ -88,28 +88,47 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, cerr := fetchLocation(lid, format)
+	url, layername, cerr := fetchLocation(lid, format)
 	if cerr != nil {
 		w.Write([]byte(cerr.Error()))
 		r.Body.Close()
 		return
 	}
 
-	log.Println("about to fetch the data")
+        switch format {
+        case "gsheet":
+                //w.Header().Set("Content-Type","octet-stream")
+                //w.Header().Add("Content-Disposition","inline; filename=" + layername)
+                log.Printf("%s", *url)
+                http.Redirect(w,r,*url,http.StatusSeeOther)
+                //w.Write([]byte(*url))
+                //io.Copy(w, *url)
+                r.Body.Close()
+                return
+        case "csv":
+                w.Header().Set("Content-Type","application/csv")
+                w.Header().Add("Content-Disposition","attachment; filename=" + layername + ".csv")
+                w.Header().Add("Pragma","no-cache")
+        case "shp":
+                w.Header().Set("Content-Type","application/zip")
+                w.Header().Add("Content-Disposition","attachment; filename=" + layername + ".zip")
+                w.Header().Add("Pragma","no-cache")
+        }
 
-	data, cerr := http.Get(*url)
-	if cerr != nil {
-		log.Printf("%s", cerr.Error())
-		response := fmt.Sprintf("Could not fetch url: %s", url)
-		w.Write([]byte(response))
-		r.Body.Close()
-		return
-	}
+        data, cerr := http.Get(*url)
+        if cerr != nil {
+                log.Printf("%s", cerr.Error())
+                response := fmt.Sprintf("Could not fetch url: %s", url)
+                w.Write([]byte(response))
+                r.Body.Close()
+                return
+        }
 
-	defer data.Body.Close()
+        defer data.Body.Close()
 
 	io.Copy(w, data.Body)
 	r.Body.Close()
+        return
 }
 
 func fetchOrg(org string) (string, error) {
@@ -155,8 +174,9 @@ func fetchOrg(org string) (string, error) {
 	return data, nil
 }
 
-func fetchLocation(lid string, format string) (*string, error) {
+func fetchLocation(lid string, format string) (*string, string, error) {
 	var url string
+        var layername string
 
 	creds := getCloudCreds()
 	dbinfo := fmt.Sprintf("dbname=%s sslmode=disable user=%s host=%s password=%s", dbname, creds.User, creds.Host, creds.Password)
@@ -164,37 +184,37 @@ func fetchLocation(lid string, format string) (*string, error) {
 	db, err := sql.Open("postgres", dbinfo)
 	if err != nil {
 		err = errors.New("Could not establish a connection with the host")
-		return &url, err
+		return &url, "", err
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
 		err = errors.New("Could not establish a connection with the database")
-		return &url, err
+		return &url, "", err
 	}
 
 	// eg. mapurl, shpurl, csvurl, gsheeturl
 	furl := format + "url"
 
-	query := fmt.Sprintf("select %s from %s where lid = %s limit 1", furl, library, lid)
+	query := fmt.Sprintf("select name,%s from %s where lid = %s limit 1", furl, library, lid)
 	log.Printf("%s", query)
 
-	err = db.QueryRow(query).Scan(&url)
+	err = db.QueryRow(query).Scan(&layername,&url)
 	if err != nil {
 		log.Printf("ola %s", err.Error())
 		err = errors.New("No results found")
-		return &url, err
+		return &url, "", err
 	}
 
         if strings.Contains(url, "gs://") {
 		err = getSignedURL(&url)
 		if err != nil {
-			return &url, err
+			return &url, "", err
 		}
         }
 
-	return &url, nil
+	return &url, layername, nil
 }
 
 func getSignedURL(url *string) (error) {
