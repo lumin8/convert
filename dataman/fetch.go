@@ -81,12 +81,15 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+        //  TBD SCOTT:  proper url parsing, not the hack herein
 	format, err := paramCheck("format", r)
 	if err != nil || format == "" {
 		w.Write([]byte("please specify a correct file format '&format=' "))
 		r.Body.Close()
 		return
 	}
+
+        format = strings.Replace(format, "%20", " ", -1)
 
 	url, layername, cerr := fetchLocation(lid, format)
 	if cerr != nil {
@@ -96,7 +99,7 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
         switch format {
-        case "gsheet":
+        case "google sheet":
                 log.Printf("%s", *url)
                 http.Redirect(w,r,*url,http.StatusSeeOther)
                 r.Body.Close()
@@ -105,10 +108,18 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
                 w.Header().Set("Content-Type","application/csv")
                 w.Header().Add("Content-Disposition","attachment; filename=" + layername + ".csv")
                 w.Header().Add("Pragma","no-cache")
-        case "shp":
+        case "shapefile":
                 w.Header().Set("Content-Type","application/zip")
                 w.Header().Add("Content-Disposition","attachment; filename=" + layername + ".zip")
                 w.Header().Add("Pragma","no-cache")
+        case "wms url":
+                log.Printf("%s", *url)
+                http.Redirect(w,r,*url,http.StatusSeeOther)
+                r.Body.Close()
+        case "map":
+                log.Printf("%s", *url)
+                http.Redirect(w,r,*url,http.StatusSeeOther)
+                r.Body.Close()
         }
 
         data, cerr := http.Get(*url)
@@ -152,7 +163,7 @@ func fetchOrg(org string) (string, error) {
 	case "*":
                 subquery = fmt.Sprintf("select organization,name,lid,formats from %s", library)
         default:
-		subquery = fmt.Sprintf("select organization,name,lid,formats from %s where organization = '%s'", library, org)
+		subquery = fmt.Sprintf("select organization,name,lid,formats from %s where organization = '%s' order by name asc", library, org)
 	}
 
 	query := fmt.Sprintf("select array_to_json(array_agg(row_to_json(t))) from ( %s ) t", subquery)
@@ -191,9 +202,8 @@ func fetchLocation(lid string, format string) (*string, string, error) {
 	}
 
 	// eg. mapurl, shpurl, csvurl, gsheeturl
-	furl := format + "url"
 
-	query := fmt.Sprintf("select name,%s from %s where lid = %s limit 1", furl, library, lid)
+	query := fmt.Sprintf("select name,\"%s\" from %s where lid = %s limit 1", format, library, lid)
 	log.Printf("%s", query)
 
 	err = db.QueryRow(query).Scan(&layername,&url)
