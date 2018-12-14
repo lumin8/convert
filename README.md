@@ -67,7 +67,16 @@ If org is unspecified, and lid (layer id) and format (csv, shp, map, gsheet) are
 
 The datasets themselves are stored in a google storage bucket, whose url's and locations are also kept secret in the backend.  The only url's that will be exposed to the end user are the map url (which will also be behind another proxy, so this is ok), and the gsheets url.  Gsheets will need to have some sort of authorization on it, not sure yet how this is going to work.
 
+for all organizations, all layers:
+
+````curl "http://data.map.life/fetch?org=*" -o test.json````
+
+for just one organization:
+
 ````curl "http://data.map.life/fetch?org=Battery+Mineral+Resources" -o test.json````
+
+for a specific dataset:
+
 ````curl "http://data.map.life/fetch?lid=99999&format=csv" -o test.csv````
 
 
