@@ -9,3 +9,4 @@ nohup*
 version*
 apilog*
 leveldb/
+data/

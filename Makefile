@@ -17,6 +17,6 @@ $(PLATFORMS):
 		-X main.BUILDUSER=$(BUILD_USER) \
 		-X main.BUILDHOST=$(BUILD_HOST) \
 		-X main.BUILDGITSHA=$(GIT_SHA)" \
-		-o ./release/$(BINARY)-$(VERSION)-$(os) ./dataman/
+		-o ./release/$(BINARY)-$(VERSION)-$(os) ./tools/
 
 .PHONY: $(PLATFORMS)

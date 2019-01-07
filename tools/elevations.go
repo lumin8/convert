@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	demvrt = "/data/dem/hdt/earthdem.vrt"
+	demvrt = "../data/dem/hdt/earthdem.vrt"
 )
 
 func paramCheck(i string, r *http.Request) (string, []byte) {

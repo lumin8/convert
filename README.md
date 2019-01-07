@@ -1,83 +1,27 @@
-# Data API
+# CONVERT... csv/shp/dxf to custom unity JSON API
 
 This api takes http POST of csv (tbd shp and dxf), and returns json or a struct used to build Unity objects for the Deep AR project.
 
-There are currently two principle pieces: main.go and mappings.go, which hold the business end and the struct mappings end of the code project, respectively.
+main.go farms out requests to convert / etc.
+datamap.go holds the structs
+convert.go is the workhorse: it peels into the data,  _adds elevations to coordinates_, and spits out a custom json for use with unity mobile app.
+elevations.go is the sibling to convert.go, there as a tool that performs the elevation lookups
 
-**Current Staging Server Address: http://data.map.life/**
+**convert.go relies on a huge digital elevation model of the earth (several hundred gb's of data)**
 
-To use:
-- download this repo
-- ensure port 8000 is open (or change the config of the port in the const of main.go)
-- set nginx or apache/whatever to proxy to 127.0.0.1:8000
-- set your GOPATH  `export GOPATH=$HOME/go`
-- > go run main.go mappings.go  //or
-- > ./make.bash  //compiles the program so it may be run simply by typing ./main
+- convert.go does _not_ currently download this dataset
+- convert.go _should_ be set up to download the dataset (eg. in docker, etc)
+- convert.go _does_ rely on the **gdal** tools to request point specific data.
 
-Logging is only currently available if one runs the datapi as ````nohup ./main & disown; tail -f nohup.out````
+Logging is only currently available if one runs the datapi with NOHUP
 
-## DEM endpoint:  .../dem/?x=&y=
+## TBD 
 
-Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], and a format (json), and what comes back will be a DEM in EPSG:3857 approximate 0.06 degrees square surrounding the central xy point.  
-
-DEM is currently set to a 0.03 x 0.03 decimal degree wide grid, which is approximately 3km.
-
-eg: ````curl "http://data.map.life/dem?x=-111.03667&y=45.68407" -o dem.json````
-
-
-## NEARME endpoint:  .../nearme/?x=&y=&f=&type=
-
-Hit this endpoint with a lat (y), long(x) [use negatives in the western hemisphere!], a format (json), and a type (see below)...  what comes back will be a dataset in EPSG:3857 approximately 2 kilometers around you (depending on the type)i...  NOTE:  all points forming these shapes WILL HAVE ELEVATION AS WELL!
-
-Types currently supported:
-- **&type=poi**  (points of interest, eg. peak names, waterbodies, trailheads, etc.)
-- **&type=trails**  (trails, paths, hiking routes, etc.)
-- **&type=roads**  (roads, interstates, etc...   this could get intense)
-- **&type=water**  (rivers, streams, etc.)
-
-eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=poi" -o poi.json````
-eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=roads" -o roads.json````
-eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=trails" -o trails.json````
-eg: ````curl "http://data.map.life/nearme?x=-111.03667&y=45.68407&f=json&type=water" -o water.json````
-
-## NEARME Styles:  .../nearme/?styles=get
-
-This request will return a json stylesheet of all current and default working styles WRT the nearme service.
-
-Styles currently cover:
-
-POI
-- **Default**
-
-Roads
-- **Primary**
-- **Secondary**
-- **Residential**
-- **Default**
-
-Trails
-- **Default**
-
-## FETCH endpoint: ../fetch?org=  or ../fetch?lid=&format=
-
-This endpoint, for Map.Life, fetches a _list_ of all datasets associated with an organization and returns a json object that can be parsed.   If org is specified, but left blank, it will fetch a list of all datasets for all organizations.
-
-If org is unspecified, and lid (layer id) and format (csv, shp, map, gsheet) are specified, the endpoint will stream that exact data.  
-**NOTE** it is up to the WEB CLIENT or whoever is streaming the data to CREATE A FILENAME using information from the header specified with the http request.
-
-The datasets themselves are stored in a google storage bucket, whose url's and locations are also kept secret in the backend.  The only url's that will be exposed to the end user are the map url (which will also be behind another proxy, so this is ok), and the gsheets url.  Gsheets will need to have some sort of authorization on it, not sure yet how this is going to work.
-
-for all organizations, all layers:
-
-````curl "http://data.map.life/fetch?org=*" -o test.json````
-
-for just one organization:
-
-````curl "http://data.map.life/fetch?org=Battery+Mineral+Resources" -o test.json````
-
-for a specific dataset:
-
-````curl "http://data.map.life/fetch?lid=99999&format=csv" -o test.csv````
+- change struct of inbound/outbound data to absorb json, and get/put from gs bucket, INSTEAD OF multipart file
+- should prolly wrap this in a container, se we can have:
+- local installation of gdal tools
+- upgrade makefile to pull and untar ~94 gb of DEM data from `gs://data.map.life/raw/dem/worlddem_100m.tar.gz`, if not already exists
+- remove main.go if this is not being used as standalone service (all main.go does is set up server mux)
 
 
 ## SAMPLE endpoint:  .../sample?get=&did=&token=" -o testsample.json
@@ -90,9 +34,6 @@ Datasets Ids ( DID ) currently supported:
 - **1**
 - **2**
 - **3**
-
-TOKEN currently supported:
-- **any**  *currently auth is not hooked up**
 
 eg: ````curl "http://data.map.life/sample?get=collection" -o samplecollection.json````
 
@@ -116,8 +57,8 @@ https://github.com/lumin8/deepar-data/blob/master/config/output.json
 ## Tests
 One test currently exists as 'data_test.go'.  This can be run from any machine, it bundles up a CSV from tests/trek/ and the json array of info (above), hits the endpoint, and receives the data back.  Currently, a 200KB csv and a nominal json expand **3x** in the current arrangement for datasets (config/output.json)... this is not ideal, further testing may indicate a need to compress the verbosity of the output.json.
 
-## TBD
-Add SHP conversion functionality
-Add DXF conversion functionality
+## TBD Future Conversion Functionality
+Add SHP conversion
+Add DXF conversion
 Handle different Coordinate Systems
 Handle input of EPSG:3857 (utm meters) in addition to the already-accepted EPSG:4326 (lat long)
