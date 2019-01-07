@@ -76,6 +76,7 @@ func main() {
 	m.HandleFunc("/nearme", nearmeHandler)
 	m.HandleFunc("/sample", sampleHandler)
 	m.HandleFunc("/fetch", fetchHandler)
+        m.Handle("/", http.FileServer(http.Dir("../html")))
 
 	log.Println("Listening on " + ListeningPort)
 	proxy.ListenAndServe()
