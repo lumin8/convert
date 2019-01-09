@@ -1,109 +1,153 @@
-package main
+package converter
 
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
-	"mime"
-	"mime/multipart"
-	"net/http"
+	"os"
+	"os/exec"
+	"path"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/golang/geo/s2"
-	"gopkg.in/yaml.v2"
-	//    "github.com/jonas-p/go-shp"
+	geo "github.com/paulmach/go.geo"
+	geojson "github.com/paulmach/go.geojson"
 )
 
-func dataHandler(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-
-	_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	check(err)
-
-	reader := multipart.NewReader(r.Body, params["boundary"])
-
-	var indataset Input
-	var converted []byte
-	var data []byte
-	var info []byte
-
-	for {
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-
-		switch part.FormName() {
-		case "info":
-			info, err = ioutil.ReadAll(part)
-			check(err)
-			fmt.Printf("%s\n", info)
-			fmt.Printf("read from info!\n")
-		case "file":
-			data, err = ioutil.ReadAll(part)
-			check(err)
-			fmt.Printf("read from data!\n")
-		}
-	}
-
-	err = yaml.Unmarshal(info, &indataset)
-	check(err)
-
-	format := indataset.Format
-
-	switch format {
-	case "csv":
-		converted, err = CsvHandler(indataset, data)
-		check(err)
-	//case "shp":
-	//outdataset, err = ShpHandler(indataset, data)
-	//case "dxf":
-	//outdataset, err = DxfHandler(indataset, contents)
-	default:
-		converted = []byte("Sorry, things didn't work out.  Is the format supported?")
-	}
-
-	//    ioutil.WriteFile("tests/out.json", converted, 0644)
-	w.Write(converted)
-
-	log.Println("total dataset round trip:", int64(time.Since(start).Seconds()*1e3), "ms")
+// Datasets ...
+type Datasets struct {
+	Id      string       `json:"id" yaml:"id"`
+	Name    string       `json:"name" yaml:"name"`
+	Url     string       `json:"dataurl" yaml:"dataurl"`
+	Updated string       `json:"lastUpdated" yaml:"lastUpdated"`
+	Center  []Coordinate `json:"center" yaml:"center"`
+	S2      []string     `json:"s2" yaml:"s2"`
+	Points  []Point      `json:"points" yaml:"points"`
+	Lines   []Line       `json:"lines" yaml:"lines"`
+	Shapes  []Shape      `json:"shapes" yaml:"shapes"`
 }
 
-// trying to convert a csv?  here's where it happens
-func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) {
-	log.Println("request for a csv conversion")
+// Coordinate ...
+type Coordinate struct {
+	X float64 `json:"x" yaml:"x"`
+	Y float64 `json:"y" yaml:"y"`
+	Z float64 `json:"z" yaml:"z"`
+}
 
-	start := time.Now()
-	s := bytes.NewReader(contents)
+// Point ...
+type Point struct {
+	Id         string      `json:"id" yaml:"id"`
+	Name       string      `json:"name" yaml:"name"`
+	StyleType  string      `json:"type" yaml:"type"`
+	Attributes []Attribute `json:"attributes" yaml:"attributes"`
+	Point      []float64   `json:"point" yaml:"point"`
+}
 
-	raw, err := csv.NewReader(s).ReadAll()
-	check(err)
+// Line ...
+type Line struct {
+	Id         string      `json:"id" yaml:"id"`
+	Name       string      `json:"name" yaml:"name"`
+	StyleType  string      `json:"type" yaml:"type"`
+	Attributes []Attribute `json:"attributes" yaml:"attributes"`
+	Points     [][]float64 `json:"points" yaml:"points"`
+}
 
-	xfield := indataset.Xfield
-	yfield := indataset.Yfield
-	zfield := indataset.Zfield
+// Shape ...
+type Shape struct {
+	Id         string      `json:"id" yaml:"id"`
+	Name       string      `json:"name" yaml:"name"`
+	StyleType  string      `json:"type" yaml:"type"`
+	Attributes []Attribute `json:"attributes" yaml:"attributes"`
+	Points     [][]float64 `json:"points" yaml:"points"`
+}
+
+// Attribute ...
+type Attribute struct {
+	Key   string `json:"key" yaml:"key"`
+	Value string `json:"value" yaml:"value"`
+}
+
+// GeojsonS ...
+type GeojsonS struct {
+	Type   string    `json:"type" yaml:"type"`
+	Coords []float64 `json:"coordinates" yaml:"coordinates"`
+}
+
+// GeojsonM ...
+type GeojsonM struct {
+	Type   string      `json:"type" yaml:"type"`
+	Coords [][]float64 `json:"coordinates" yaml:"coordinates"`
+}
+
+// FeatureInfo ...
+type FeatureInfo struct {
+	id        int
+	geojson   geojson.Feature //G
+	geomtype  string
+	srid      string
+	s2        []s2.CellID
+	tokens    []string
+	name      string
+	styletype string
+}
+
+const (
+	// env var for the dem.ver path
+	envDEMVRT = "DEMVRT"
+)
+
+// demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
+// Note: if the file is moved or deleted the path will not change
+var demvrt = ""
+
+// demvrtPath is used to resolve the path for the dem.vrt file
+func demvrtPath() (string, error) {
+	if demvrt != "" {
+		return demvrt, nil
+	}
+
+	dvp := os.Getenv(envDEMVRT)
+	if len(dvp) == 0 {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		dvp = path.Join(cwd, "dem.vrt")
+	}
+
+	if _, err := os.Stat(dvp); err != nil {
+		return "", fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+	}
+	demvrt = dvp
+	return dvp, nil
+}
+
+// DatasetFromCSV ...
+func DatasetFromCSV(xField string, yField string, zField string, contents []byte) (*Datasets, error) {
+	raw, err := csv.NewReader(bytes.NewReader(contents)).ReadAll()
+	if err != nil {
+		return nil, err
+	}
 
 	var outdataset Datasets
+
 	headers := make(map[int]string)
 	bbox := make(map[string]float64)
 
 	for i, record := range raw {
-		var pointxyz Point
-		var point Points
+		var pointxyz Coordinate
+		var point Point
 		switch i {
 		case 0:
 			for i, header := range record {
 				switch header {
-				case xfield:
+				case xField:
 					headers[i] = "X"
-				case yfield:
+				case yField:
 					headers[i] = "Y"
-				case zfield:
+				case zField:
 					headers[i] = "Z"
 				default:
 					headers[i] = header
@@ -123,7 +167,7 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 					MinMax(bbox, pointxyz.X, pointxyz.Y)
 
 				default:
-					var atts Attributes
+					var atts Attribute
 					atts.Key = headers[i]
 					atts.Value = fmt.Sprintf("%v", value)
 					//TBD geojson pair := make(map[string]interface{})
@@ -132,10 +176,10 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 				}
 			}
 
-			// fill elevation for the processing node of the point, line, or shape if required
+			// fill elevation if required
 			if pointxyz.Z == 0 && pointxyz.X != 0 && pointxyz.Y != 0 {
 				log.Printf("value needed filling in with elevation...")
-				pointxyz.Z, err = getElev(pointxyz.X, pointxyz.Y)
+				pointxyz.Z, err = GetElev(pointxyz.X, pointxyz.Y)
 			}
 
 			//finally, fill in the point float array
@@ -146,25 +190,19 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 	}
 
 	// configure the center point... in 4326
-	var c Point
+	var c Coordinate
 	c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
 	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
-	c.Z, _ = getElev(c.X, c.Y)
+	c.Z, _ = GetElev(c.X, c.Y)
 	outdataset.Center = append(outdataset.Center, c)
 
 	// configure the s2 array... in 4326
 	outdataset.S2 = s2covering(bbox)
 
-        // finally, process into the unity json struct
-	converted, err = json.Marshal(outdataset)
-
-        // add that we've processed a new csv dataset to the counter
-	counter.Incr("csv")
-	log.Println("csv's processed:", counter.Get("csv"), ", time:", int64(time.Since(start).Seconds()*1e3), "ms")
-	return converted, err
+	return &outdataset, err
 }
 
-// any time a dataset comes in.... the output unity json REQUIRES a minmax in lat long (for tap to zoom) 
+// MinMax ...
 func MinMax(bbox map[string]float64, X float64, Y float64) {
 	_, ok := bbox["lx"]
 	if !ok {
@@ -174,34 +212,30 @@ func MinMax(bbox map[string]float64, X float64, Y float64) {
 		bbox["uy"] = Y
 	}
 
-	switch {
-	case X < bbox["lx"]:
+	if X < bbox["lx"] {
 		bbox["lx"] = X
-	case X > bbox["rx"]:
+	}
+	if X > bbox["rx"] {
 		bbox["ux"] = X
 	}
-
-	switch {
-	case Y < bbox["ly"]:
+	if Y < bbox["ly"] {
 		bbox["ly"] = Y
-	case Y > bbox["uy"]:
+	}
+	if Y > bbox["uy"] {
 		bbox["uy"] = Y
 	}
 }
 
-// any time a dataset comes in.... the output unity json is set to use s2 covering (for lots of reasons too many to discuss here)
-// s2 coverings are badass, new google tech, and what the nearme service also relies upon
+// s2covering ...
 func s2covering(bbox map[string]float64) []string {
 	var s2hash []string
 
 	rx, uy := To4326(bbox["rx"], bbox["uy"])
 	lx, ly := To4326(bbox["lx"], bbox["ly"])
-	cz, err := getElev(bbox["rx"], bbox["uy"])
+	cz, err := GetElev(bbox["rx"], bbox["uy"])
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	fmt.Println(lx, ly, rx, uy)
 
 	pts := []s2.Point{
 		s2.PointFromCoords(rx, uy, cz),
@@ -219,8 +253,10 @@ func s2covering(bbox map[string]float64) []string {
 			runes := []rune(token)
 			token = string(runes[0:8])
 		}
-		if tokencheck(token, s2hash) == false {
-			fmt.Printf(token)
+		for _, b := range s2hash {
+			if b != token {
+				continue
+			}
 			s2hash = append(s2hash, token)
 		}
 	}
@@ -228,12 +264,58 @@ func s2covering(bbox map[string]float64) []string {
 	return s2hash
 }
 
-// token checking is not something that belongs here at all.   can remove
-func tokencheck(token string, list []string) bool {
-	for _, b := range list {
-		if b == token {
-			return true
-		}
+// GetElev gets the elevation for the given x y coordinate
+func GetElev(x float64, y float64) (float64, error) {
+	// outputs in meters, works regardless of input projection
+	lon, lat := To4326(x, y)
+
+	var zstr string
+
+	xstr := strconv.FormatFloat(lon, 'f', -2, 64)
+	ystr := strconv.FormatFloat(lat, 'f', -2, 64)
+
+	demvrt, err := demvrtPath()
+	if err != nil {
+		return 0, err
 	}
-	return false
+
+	cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
+	zbyte, err := exec.Command("sh", "-c", cmd).Output()
+	if err != nil {
+		return 0, err
+	}
+	zstr = strings.TrimSpace(string(zbyte))
+	z, _ := strconv.ParseFloat(zstr, 64)
+	return z, err
+}
+
+// str2fixed ...
+func str2fixed(num string) float64 {
+	val, _ := strconv.ParseFloat(num, 64)
+	j := strconv.FormatFloat(val, 'f', 2, 64)
+	k, _ := strconv.ParseFloat(j, 64)
+	return k
+}
+
+// To4326 ...
+func To4326(x float64, y float64) (float64, float64) {
+	// regardless of inbound, kicks out 4326
+	if (x <= 180) && (x >= -180) {
+		return x, y
+	}
+	mercPoint := geo.NewPoint(x, y)
+	geo.Mercator.Inverse(mercPoint)
+	return mercPoint[0], mercPoint[1]
+}
+
+// To3857 ...
+func To3857(x float64, y float64) (float64, float64) {
+	// regardless of inbound, kicks out 3857
+	if (x > 180) || (x < -180) {
+		return x, y
+	}
+
+	mercPoint := geo.NewPoint(x, y)
+	geo.Mercator.Project(mercPoint)
+	return mercPoint[0], mercPoint[1]
 }
