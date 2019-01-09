@@ -33,6 +33,7 @@ func paramCheck(i string, r *http.Request) (string, []byte) {
 	return str, resp
 }
 
+// can remove demHandler, this wouldn't be used in a data conversion service
 func demHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
