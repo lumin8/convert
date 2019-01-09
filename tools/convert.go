@@ -74,6 +74,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("total dataset round trip:", int64(time.Since(start).Seconds()*1e3), "ms")
 }
 
+// trying to convert a csv?  here's where it happens
 func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) {
 	log.Println("request for a csv conversion")
 
@@ -131,7 +132,7 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 				}
 			}
 
-			// fill elevation if required
+			// fill elevation for the processing node of the point, line, or shape if required
 			if pointxyz.Z == 0 && pointxyz.X != 0 && pointxyz.Y != 0 {
 				log.Printf("value needed filling in with elevation...")
 				pointxyz.Z, err = getElev(pointxyz.X, pointxyz.Y)
@@ -154,12 +155,16 @@ func CsvHandler(indataset Input, contents []byte) (converted []byte, err error) 
 	// configure the s2 array... in 4326
 	outdataset.S2 = s2covering(bbox)
 
+        // finally, process into the unity json struct
 	converted, err = json.Marshal(outdataset)
+
+        // add that we've processed a new csv dataset to the counter
 	counter.Incr("csv")
 	log.Println("csv's processed:", counter.Get("csv"), ", time:", int64(time.Since(start).Seconds()*1e3), "ms")
 	return converted, err
 }
 
+// any time a dataset comes in.... the output unity json REQUIRES a minmax in lat long (for tap to zoom) 
 func MinMax(bbox map[string]float64, X float64, Y float64) {
 	_, ok := bbox["lx"]
 	if !ok {
@@ -184,6 +189,8 @@ func MinMax(bbox map[string]float64, X float64, Y float64) {
 	}
 }
 
+// any time a dataset comes in.... the output unity json is set to use s2 covering (for lots of reasons too many to discuss here)
+// s2 coverings are badass, new google tech, and what the nearme service also relies upon
 func s2covering(bbox map[string]float64) []string {
 	var s2hash []string
 
@@ -221,6 +228,7 @@ func s2covering(bbox map[string]float64) []string {
 	return s2hash
 }
 
+// token checking is not something that belongs here at all.   can remove
 func tokencheck(token string, list []string) bool {
 	for _, b := range list {
 		if b == token {
