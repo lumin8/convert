@@ -1,0 +1,10 @@
+# github.com/golang/geo v0.0.0-20181008215305-476085157cff
+github.com/golang/geo/s2
+github.com/golang/geo/r1
+github.com/golang/geo/r2
+github.com/golang/geo/r3
+github.com/golang/geo/s1
+# github.com/paulmach/go.geo v0.0.0-20180829195134-22b514266d33
+github.com/paulmach/go.geo
+# github.com/paulmach/go.geojson v1.4.0
+github.com/paulmach/go.geojson
