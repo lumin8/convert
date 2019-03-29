@@ -1,9 +1,9 @@
-package converter
+package convert
 
 import (
-	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -126,8 +126,8 @@ func demvrtPath() (string, error) {
 }
 
 // DatasetFromCSV ...
-func DatasetFromCSV(xField string, yField string, zField string, contents []byte) (*Datasets, error) {
-	raw, err := csv.NewReader(bytes.NewReader(contents)).ReadAll()
+func DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
+	raw, err := csv.NewReader(contents).ReadAll()
 	if err != nil {
 		return nil, err
 	}
