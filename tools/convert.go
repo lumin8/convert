@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	shapes "github.com/jonas-p/go-shp"
 	"github.com/golang/geo/s2"
 	geo "github.com/paulmach/go.geo"
 	geojson "github.com/paulmach/go.geojson"
@@ -132,6 +133,111 @@ func DatasetFromCSV(xField string, yField string, zField string, contents []byte
 	}
 
 	var outdataset Datasets
+
+	headers := make(map[int]string)
+	bbox := make(map[string]float64)
+
+	for i, record := range raw {
+		var pointxyz Coordinate
+		var point Point
+		switch i {
+		case 0:
+			for i, header := range record {
+				switch header {
+				case xField:
+					headers[i] = "X"
+				case yField:
+					headers[i] = "Y"
+				case zField:
+					headers[i] = "Z"
+				default:
+					headers[i] = header
+				}
+			}
+		default:
+
+			for i, value := range record {
+				switch headers[i] {
+				case "X":
+					pointxyz.X, _ = strconv.ParseFloat(value, 64)
+				case "Y":
+					pointxyz.Y, _ = strconv.ParseFloat(value, 64)
+				case "Z":
+					pointxyz.Z, _ = strconv.ParseFloat(value, 64)
+
+					MinMax(bbox, pointxyz.X, pointxyz.Y)
+
+				default:
+					var atts Attribute
+					atts.Key = headers[i]
+					atts.Value = fmt.Sprintf("%v", value)
+					//TBD geojson pair := make(map[string]interface{})
+					//TBD geojson pair[headers[i]] = value
+					point.Attributes = append(point.Attributes, atts)
+				}
+			}
+
+			// fill elevation if required
+			if pointxyz.Z == 0 && pointxyz.X != 0 && pointxyz.Y != 0 {
+				log.Printf("value needed filling in with elevation...")
+				pointxyz.Z, err = GetElev(pointxyz.X, pointxyz.Y)
+			}
+
+			//finally, fill in the point float array
+			point.Point = append(point.Point, pointxyz.X, pointxyz.Y, pointxyz.Z)
+		}
+
+		outdataset.Points = append(outdataset.Points, point)
+	}
+
+	// configure the center point... in 4326
+	var c Coordinate
+	c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
+	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
+	c.Z, _ = GetElev(c.X, c.Y)
+	outdataset.Center = append(outdataset.Center, c)
+
+	// configure the s2 array... in 4326
+	outdataset.S2 = s2covering(bbox)
+
+	return &outdataset, err
+}
+
+// DatasetFromSHP.....
+func DatasetFromSHP(shapeFile []byte, dbfFile []byte) (*Datasets, error) {
+	// a 'shp' file is actually a zip of a shp and a dbf
+	// shapefiles use fieldnames of X Y Z for the geom, no add'l fields required
+
+	raw := &shapes.Reader{shp: shapeFile, dbf: dbfFile}
+	raw.readHeaders()
+
+	// abridged function to read dbf w/out passing filename
+	// read header
+	raw.dbf.Seek(4, io.SeekStart)
+	binary.Read(raw.dbf, binary.LittleEndian, &raw.dbfNumRecords)
+	binary.Read(raw.dbf, binary.LittleEndian, &raw.dbfHeaderLength)
+	binary.Read(raw.dbf, binary.LittleEndian, &raw.dbfRecordLength)
+
+	raw.dbf.Seek(20, io.SeekCurrent) // skip padding
+	numFields := int(math.Floor(float64(raw.dbfHeaderLength-33) / 32.0))
+	raw.dbfFields = make([]Field, numFields)
+	binary.Read(raw.dbf, binary.LittleEndian, &raw.dbfFields)
+
+	var outdataset Datasets
+
+	for shape.Next() {
+		n, p := shape.Shape()
+		// print feature
+		fmt.Println(reflect.TypeOf(p).Elem(), p.BBox())
+
+		// print attributes
+		for k, f := range fields {
+			val := shape.ReadAttribute(n, k)
+			fmt.Printf("\t%v: %v\n", f, val)
+		}
+	}
+
+	return
 
 	headers := make(map[int]string)
 	bbox := make(map[string]float64)
