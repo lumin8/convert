@@ -34,7 +34,7 @@ Converts each feature json into a `FeatureInfo` class, parsing both the attribut
 Explodes the feature geometry, coordinate by coordinate, uses `GetElev` to fill in Z value if needed, and enforces EPSG:3857.
 
 
-``ParseGEOJSONAttributes```
+```ParseGEOJSONAttributes```
 Explodes the feature attributes, maps *name*, *styletype*, and *id* to a higher object level in the `FeatureInfo`, removes attributes with missing/nil values (keeping the resulting Unity json as trim as possible), and moves all cleaned key:value attribute pairs to the new `FeatureInfo`.
 
 
