@@ -1,33 +1,53 @@
-# CONVERT... csv/geojson to custom unity json format for APP
+# Convert
 
-This api takes http POST of csv and geojson, and returns struct used to build Unity objects for the Deep AR project.
+Convert holds several golang tools used to convert csv, postgres json, and geojson into Unity style json.
 
-convert.go functionality includes: parsing inbound data,  _adds elevations to coordinates_, ensures output is in EPSG:3857 projection, finds center point x,y,z, and spits out a custom json for use with unity mobile app.
+In principle this tool is used for Deep AR's admin utility, and Map.Life's dataman utility, both enabling uploads of data and/or requests of data, where the output is intended to be read by Deep AR.
 
-**convert.go relies on a huge digital elevation model of the earth (several hundred gb's of data)**
+The output is a ```Datasets``` struct, which can hold any number of features (points, lines, and shapes), and attributes for each feature.
 
-- convert.go does _not_ currently download this dataset
-- convert.go _should_ be set up to download the dataset (eg. in docker, etc)
-- convert.go _does_ rely on the **gdal** tools to request point specific data.
+The final ```Datasets``` struct must be json-marshaled prior to use in Deep AR or most other cases.
 
-## TBD 
-
-- should prolly wrap this in a container, se we can have:
-- local installation of gdal tools
-- upgrade makefile to pull and untar ~94 gb of DEM data from `gs://data.map.life/raw/dem/worlddem_100m.tar.gz`, if not already exists
+Note: this package spawns a unique channel & goroutine for each dataset processed, called and `ExtendContainer`, if AND ONLY IF and entire dataset is being converted.  The purpose of this `ExtentContainer` is to asynchronously handle coordinates flying into the channel, figure out which four form the bottom-left and top-right coordinates of the enclosing bounding box `bbox` (aka *Extent*), which is then processed to find the Center point, to which a user will zoom if they select the `Datasets` in VR mode in Deep AR.  This `bbox` also forms the basis for configuring the S2 coverage- a series of keys or 'tokens' representing certain polygons on the ground- which can thusly be used to find associated features or datasets (eg. roads, rivers, DEM, etc) from key:value stores like a leveldb without having to perform complicated `ST_Intersects` queries.   The bbox and S2 keys are very important.
 
 
-## DATA conversion endpoint:  .../convert/  [multipart file]
+## Primary Functions
 
-Hit this enpoint with a multipart file, one is the map of the data (info) the other is the file itself (file) and it'll give back a converted dataset prepared for Unity / DeepAR according to json structure in config/
+```DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error)```
+Converts a csv file (with x, y, and z fields (if known) into a `Datasets`
 
-## Current Structure of OUTBOUND Data
--Singlepart File
 
-## Tests
-One test currently exists as 'data_test.go'.  This can be run from any machine, it bundles up a CSV from tests/trek/ and the json array of info (above), hits the endpoint, and receives the data back.  Currently, a 200KB csv and a nominal json expand **3x** in the current arrangement for datasets (config/output.json)... this is not ideal, further testing may indicate a need to compress the verbosity of the output.json.
+```DatasetFromGEOJSON(xField string, yField string, zField string, contents io.Reader) (*Datasets, error)```
+Converts a regular GEOJSON (x, y, and z fields are useless, geojson has rules on these field names) into a `Datasets`
 
-## TBD Future Conversion Functionality
-Add SHP conversion
-Add DXF conversion
-Handle different Coordinate Systems
+
+```parseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error)```
+Takes a GEOJSON- which are always 'feature collections', and breaks it up into features.  Depends on ParseGEOJSONFeature.  Uses the intermediate `FeatureInfo` struct as a map between the geojson itself and the new `Datasets` which holds n count of Features of type `FeatureInfo`.
+You should not call this function directly, but rather DatasetFromGEOSJON or, if you have individual features, ParseGEOJSONFeature.
+
+
+```ParseGEOJSONFeature(gfeature *convert.FeatureInfo, outdataset *convert.Datasets)```
+Converts each feature json into a `FeatureInfo` class, parsing both the attributes of the originating geojson and the geom of the originating geom.
+
+
+```ParseGEOJSONGeom```
+Explodes the feature geometry, coordinate by coordinate, uses `GetElev` to fill in Z value if needed, and enforces EPSG:3857.
+
+
+``ParseGEOJSONAttributes```
+Explodes the feature attributes, maps *name*, *styletype*, and *id* to a higher object level in the `FeatureInfo`, removes attributes with missing/nil values (keeping the resulting Unity json as trim as possible), and moves all cleaned key:value attribute pairs to the new `FeatureInfo`.
+
+
+## Secondary Functions  (these should be moved to seperate toolset TBD!!!)
+
+```GetElev(x float64, y float64) (float64, error)```
+Takes x and y, provides a single elevation in *meters*
+Depends upon `To4326`
+
+```To4326(x float64, y float64) (float64, float64)```
+Takes x and y, provides x and y in EPSG:4326  (lat lon decimal)
+
+```To3857((x float64, y float64) (float64, float64)```
+Takes x and y, provides x and y in EPSG:3847  (universal web mercator)
+
+

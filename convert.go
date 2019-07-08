@@ -4,7 +4,8 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
+	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path"
@@ -12,47 +13,49 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/paulmach/go.geo"
 	"github.com/golang/geo/s2"
+	"github.com/paulmach/go.geo"
+	"github.com/paulmach/go.geojson"
+	"github.com/remeh/sizedwaitgroup"
 )
 
 // Datasets ...
 type Datasets struct {
-	Id      string       `json:"id" yaml:"id"`
+	ID      string       `json:"id" yaml:"id"`
 	Name    string       `json:"name" yaml:"name"`
 	Url     string       `json:"dataurl" yaml:"dataurl"`
 	Updated string       `json:"lastUpdated" yaml:"lastUpdated"`
-	Center  []Coordinate `json:"center" yaml:"center"`
+	Center  []Point      `json:"center" yaml:"center"`
 	S2      []string     `json:"s2" yaml:"s2"`
-	Points  []Point      `json:"points" yaml:"points"`
-	Lines   []Line       `json:"lines" yaml:"lines"`
-	Shapes  []Shape      `json:"shapes" yaml:"shapes"`
+	Points  []Points     `json:"points" yaml:"points"`
+	Lines   []Lines      `json:"lines" yaml:"lines"`
+	Shapes  []Shapes     `json:"shapes" yaml:"shapes"`
 }
 
-// Coordinate ...
-type Coordinate struct {
+// Individual Point Coordinate ...
+type Point struct {
 	X float64 `json:"x" yaml:"x"`
 	Y float64 `json:"y" yaml:"y"`
 	Z float64 `json:"z" yaml:"z"`
 }
 
-// Point ...
-type Point struct {
-	Id         string      `json:"id" yaml:"id"`
+// Points ...
+type Points struct {
+	ID         string      `json:"id" yaml:"id"`
 	Name       string      `json:"name" yaml:"name"`
 	StyleType  string      `json:"type" yaml:"type"`
 	Attributes []Attribute `json:"attributes" yaml:"attributes"`
 	Point      []float64   `json:"point" yaml:"point"`
 }
 
-// Points ...
+// PointArrays ...
 type PointArray struct {
-        Points []([]float64) `json:"points" yaml:"points"`
+	Points     [][]float64 `json:"points" yaml:"points"`
 }
 
 // Line ...
-type Line struct {
-	Id         string      `json:"id" yaml:"id"`
+type Lines struct {
+	ID         string      `json:"id" yaml:"id"`
 	Name       string      `json:"name" yaml:"name"`
 	StyleType  string      `json:"type" yaml:"type"`
 	Attributes []Attribute `json:"attributes" yaml:"attributes"`
@@ -60,8 +63,8 @@ type Line struct {
 }
 
 // Shape ...
-type Shape struct {
-	Id         string      `json:"id" yaml:"id"`
+type Shapes struct {
+	ID         string      `json:"id" yaml:"id"`
 	Name       string      `json:"name" yaml:"name"`
 	StyleType  string      `json:"type" yaml:"type"`
 	Attributes []Attribute `json:"attributes" yaml:"attributes"`
@@ -74,28 +77,23 @@ type Attribute struct {
 	Value string `json:"value" yaml:"value"`
 }
 
-// GeojsonS ...
-type GeojsonS struct {
-	Type   string    `json:"type" yaml:"type"`
-	Coords []float64 `json:"coordinates" yaml:"coordinates"`
-}
-
-// GeojsonM ...
-type GeojsonM struct {
-	Type   string      `json:"type" yaml:"type"`
-	Coords [][]float64 `json:"coordinates" yaml:"coordinates"`
-}
-
 // FeatureInfo ...
 type FeatureInfo struct {
-	id        int
-//	geojson   geojson.Feature //G
-	geomtype  string
-	srid      string
-	s2        []s2.CellID
-	tokens    []string
-	name      string
-	styletype string
+	ID        string
+	Geojson   geojson.Feature
+	GeomType  string
+	SRID      string
+	S2        []s2.CellID
+	Tokens    []string
+	Name      string
+	StyleType string
+}
+
+// BBOX ExtentContainer
+type ExtentContainer struct {
+	bbox	map[string]float64
+	ch	chan []float64
+	wg	sizedwaitgroup.SizedWaitGroup
 }
 
 const (
@@ -103,7 +101,7 @@ const (
 	envDEMVRT = "DEMVRT"
 
 	// process limits for the sized wait group
-	50
+	maxRoutines = 50
 )
 
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
@@ -122,7 +120,7 @@ func demvrtPath() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		dvp = path.Join(cwd, "dem.vrt")
+		dvp = path.Join(cwd, "earthdem.vrt")
 	}
 
 	if _, err := os.Stat(dvp); err != nil {
@@ -141,13 +139,9 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 
 	var outdataset Datasets
 
+	//store the csv headers by index
 	headers := make(map[int]string)
-	bbox := make(map[string]float64)
-
-	ch := make(chan Point)
-        go MinMax(bbox, ch)
-
-	var wg sync.WaitGroup
+        container := initExtentContainer()
 
 	for i, record := range raw {
 		switch i {
@@ -165,146 +159,146 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 				}
 			}
 		default:
-			wg.Add(1)
-			go ParseCSV(bbox, headers, record, &wg, &outdataset)
+			container.wg.Add()
+			go ParseCSV(headers, record, &outdataset, container)
 		}
 	}
 
-	wg.Wait()
+	container.wg.Wait()
+
+	// close the BBOXlistener goroutine
+	close(container.ch)
 
 	// configure the center point... in 4326
-	var c Coordinate
-	c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
-	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
-	c.Z, _ = GetElev(c.X, c.Y)
+	c := getCenter(container.bbox)
 	outdataset.Center = append(outdataset.Center, c)
 
 	// configure the s2 array... in 4326
-	outdataset.S2 = s2covering(bbox)
+	outdataset.S2 = s2covering(container.bbox)
 
 	return &outdataset, err
 }
 
-
 // DatasetFromGEOJSON ...
 func DatasetFromGEOJSON(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
-        raw, err := strings.NewReader(contents)
-        if err != nil {
-                return nil, err
-        }
+	raw, err := ioutil.ReadAll(contents)
+	if err != nil {
+		return nil, err
+	}
 
-        var outdataset Datasets
+	//carries references to this dataset's ch, wg, and bbox
+        container := initExtentContainer()
 
-	raw, err := geojson.UnmarshalFeatureCollection(raw)
+	rawjson, err := geojson.UnmarshalFeatureCollection(raw)
 
-        var outdataset Datasets
-        ch := make(chan Point)
-        bbox := make(map[string]float64)
+	// this kicks off the processing of the data
+	outdataset, err := ParseGEOJSONCollection(rawjson, container)
+	if err != nil {
+		return outdataset, err
+	}
 
-        go MinMax(bbox, ch)
+	// close the BBOXlistener goroutine
+        close(container.ch)
 
-        // this kicks off the processing of the data... a biggie!
-        err = ParseGEOJSON(raw, &outdataset, ch)
-        if err != nil {
-                return &outdataset, err
-        }
+	// configure the center point... in 4326
+	c := getCenter(container.bbox)
+	outdataset.Center = append(outdataset.Center, c)
 
-        // configure the center point... in 4326
-        var c Coordinate
-        c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
-        c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
-        c.Z, _ = getElev(c.X, c.Y)
-        outdataset.Center = append(outdataset.Center, c)
+	// configure the s2 array... in 4326
+	outdataset.S2 = s2covering(container.bbox)
 
-        // configure the s2 array... in 4326
-        outdataset.S2 = s2covering(bbox)
-
-        // prepare the final UNITY json
-        converted, err = json.Marshal(outdataset)
-
-        return &outdataset, err
+	return outdataset, err
 }
 
-
 // ParseCSV ...
-func ParseCSV (bbox map[string]float64, headers map[int]string, record []string, wg *sync.WaitGroup, outdataset *Datasets) {
+func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, container *ExtentContainer) {
 
-	defer wg.Done()
+	defer container.wg.Done()
 
-	var pointxyz Coordinate
-        var point Point
-	var err error
+	var xyz []float64
+	var point Points
 
 	for i, value := range record {
 		switch headers[i] {
 		case "X":
-			pointxyz.X, _ = strconv.ParseFloat(value, 64)
+			x, _ := strconv.ParseFloat(value, 64)
+			xyz = append(xyz, x)
 		case "Y":
-			pointxyz.Y, _ = strconv.ParseFloat(value, 64)
+			y, _ := strconv.ParseFloat(value, 64)
+			xyz = append(xyz, y)
 		case "Z":
-			pointxyz.Z, _ = strconv.ParseFloat(value, 64)
-
+			z, _ := strconv.ParseFloat(value, 64)
+			xyz = append(xyz, z)
 		default:
 			var atts Attribute
 			atts.Key = headers[i]
 			atts.Value = fmt.Sprintf("%v", value)
-			//TBD geojson pair := make(map[string]interface{})
-			//TBD geojson pair[headers[i]] = value
 			point.Attributes = append(point.Attributes, atts)
 		}
 	}
 
-	// fill elevation if required
-	if pointxyz.Z == 0 && pointxyz.X != 0 && pointxyz.Y != 0 {
-		log.Printf("value needed filling in with elevation...")
-		pointxyz.Z, err = GetElev(pointxyz.X, pointxyz.Y)
-		if err != nil {
-			log.Printf("couldn't add elevation, reason: %s",err.Error())
-		}
-	}
-
-	// make SURE X and Y are in 3857
-	pointxyz.X, pointxyz.Y = To3857(pointxyz.X, pointxyz.Y)
+	// enforce 3857 and elevation
+	coord := checkCoords(xyz)
 
 	// keep a collective of the min / max coords of dataset
-        ch <- pointxyz
+	container.ch <- coord
 
 	// fill in the point float array
-	point.Point = append(point.Point, pointxyz.X, pointxyz.Y, pointxyz.Z)
+	point.Point = append(point.Point, coord[0], coord[1], coord[2])
 
 	// finally, append point to the final dataset
 	outdataset.Points = append(outdataset.Points, point)
 }
 
+// BBOXListener ...  observes every X & Y on the channel, retains lowest and highest for bbox extent
+func BBOXListener(container *ExtentContainer) {
 
-// MinMax ...
-func MinMax(bbox map[string]float64, ch chan Coordinate) {
 	for {
+		xyz, ok := <-container.ch
 
-		_, ok := bbox["lx"]
+		// if channel closes, kill goroutine
 		if !ok {
-			bbox["lx"] = X
-			bbox["rx"] = X
-			bbox["ly"] = Y
-			bbox["uy"] = Y
+			return
 		}
 
-		if X < bbox["lx"] {
-			bbox["lx"] = X
+                X := xyz[0]
+                Y := xyz[1]
+
+		_, present := container.bbox["lx"]
+		if !present {
+			container.bbox["lx"] = X
+			container.bbox["rx"] = X
+			container.bbox["ly"] = Y
+			container.bbox["uy"] = Y
 		}
-		if X > bbox["rx"] {
-			bbox["ux"] = X
+
+		// if the inbound X is outside of current extent, grow extent
+		if X < container.bbox["lx"] {
+			container.bbox["lx"] = X
+		} else if X > container.bbox["rx"] {
+			container.bbox["ux"] = X
 		}
-		if Y < bbox["ly"] {
-			bbox["ly"] = Y
-		}
-		if Y > bbox["uy"] {
-			bbox["uy"] = Y
+
+		// if the inbound Y is outside of current extent, grow extent
+		if Y < container.bbox["ly"] {
+			container.bbox["ly"] = Y
+		} else if Y > container.bbox["uy"] {
+			container.bbox["uy"] = Y
 		}
 	}
 }
 
-// s2covering ...
+// getCenter calculates the center of a bbox extent
+func getCenter(bbox map[string]float64) Point {
+	var c Point
+        c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
+        c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
+        c.Z, _ = GetElev(c.X, c.Y)
+
+	return c
+}
+
+// s2covering finds the s2 hash key that represents the geographic coverage of the bbox extent
 func s2covering(bbox map[string]float64) []string {
 	var s2hash []string
 
@@ -331,12 +325,9 @@ func s2covering(bbox map[string]float64) []string {
 			runes := []rune(token)
 			token = string(runes[0:8])
 		}
-		for _, b := range s2hash {
-			if b != token {
-				continue
-			}
-			s2hash = append(s2hash, token)
-		}
+
+		// write s2 token array to the dataset s2 key list
+		s2hash = append(s2hash, token)
 	}
 
 	return s2hash
@@ -344,7 +335,6 @@ func s2covering(bbox map[string]float64) []string {
 
 // GetElev gets the elevation for the given x y coordinate
 func GetElev(x float64, y float64) (float64, error) {
-	// outputs in meters, works regardless of input projection
 	lon, lat := To4326(x, y)
 
 	var zstr string
@@ -367,246 +357,246 @@ func GetElev(x float64, y float64) (float64, error) {
 	return z, err
 }
 
-// str2fixed ...
-func str2fixed(num string) float64 {
-	val, _ := strconv.ParseFloat(num, 64)
-	j := strconv.FormatFloat(val, 'f', 2, 64)
-	k, _ := strconv.ParseFloat(j, 64)
-	return k
-}
-
-// To4326 ...
+// To4326 converts coordinates to EPSG:4326 projection
 func To4326(x float64, y float64) (float64, float64) {
-	// regardless of inbound, kicks out 4326
-	if (x <= 180) && (x >= -180) {
-		return x, y
-	}
-	mercPoint := geo.NewPoint(x, y)
-	geo.Mercator.Inverse(mercPoint)
-	return mercPoint[0], mercPoint[1]
-}
-
-// To3857 ...
-func To3857(x float64, y float64) (float64, float64) {
-	// regardless of inbound, kicks out 3857
-	if (x < 180) || (x > -180) {
+	if x >= 180 || x <= -180 {
 		mercPoint := geo.NewPoint(x, y)
-		geo.Mercator.Project(mercPoint)
+		geo.Mercator.Inverse(mercPoint)
 		x = mercPoint[0]
 		y = mercPoint[1]
 	}
 
-	x = math.Round(mercPoint[0]*100)/100
-        y = math.Round(mercPoint[1]*100)/100
-        return x, y
+	return x, y
 }
 
-//ParseGEOJSON ...
-func ParseGEOJSON(Features *geojson.FeatureCollection, outdataset *Datasets, ch chan Point) error {
-        wg := sizedwaitgroup.New(processes)
-        var err error
+// To3857 converts coordinates to EPSG:3857 projection
+func To3857(x float64, y float64) (float64, float64) {
+	if x <= 180 || x >= -180 {
+		mercPoint := geo.NewPoint(x, y)
+		geo.Mercator.Project(mercPoint)
+		x = mercPoint[0]
+		y = mercPoint[1]
 
-        //access each of the individual features of the geojson
-        for _, item := range Features.Features {
+		// trim decimals to the cm
+		x = math.Round(mercPoint[0]*100) / 100
+		y = math.Round(mercPoint[1]*100) / 100
+	}
 
-		// the entire json feature
-                temp, _ := json.Marshal(item)
+	return x, y
+}
 
-		// just the geometry
-                geom, _ := json.Marshal(item.Geometry)
+//ParseGEOJSONCollection peels into the collection multiple features
+func ParseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error) {
+	var outdataset Datasets
+	var err error
+
+	if len(collection.Features) < 1 {
+		return &outdataset, err
+	}
+
+	//access each of the individual features of the geojson
+	for _, item := range collection.Features {
 
 		// the new feature
-                var gfeature FeatureInfo
+		var gfeature FeatureInfo
+		gfeature.Geojson = *item
 
-                wg.Add()
+		container.wg.Add()
 
-                go func() {
+		// set off a new go routine for each feature
+		go func() {
+			defer container.wg.Done()
 
-                        defer wg.Done()
+			// process each feature independently
+			ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets)
+		}()
+	}
 
-                        err = json.Unmarshal(temp, &gfeature.geojson)
-                        if err != nil {
-                                log.Printf("error unmarshaling feature: %s", err)
-                                return
-                        }
+	container.wg.Wait()
 
-                        gfeature.geojson.Geometry, err = geojson.UnmarshalGeometry([]byte(geom))
-                        if err != nil {
-                                log.Printf("error unmarshaling feature geom: %s", err)
-                                return
-                        }
-
-                        switch gfeature.geojson.Geometry.Type {
-                        case "Point","PointZ","point","pointz":
-                                var wg sync.WaitGroup
-                                var feature Points
-                                wg.Add(2)
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Point = deriveGEOJSONPoints(&gfeature,ch).Points[0]
-                                        if len(feature.Point) < 1 {
-                                                wg.Done()
-                                                return
-                                        }
-                                }()
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Attributes = parseGEOJSONAttributes(&gfeature)
-                                        feature.Name = gfeature.name
-                                        feature.StyleType = gfeature.styletype
-                                }()
-                                wg.Wait()
-                                outdataset.Points = append(outdataset.Points, feature)
-
-                        case "LineString","LineStringZ","linestring","linestringz":
-                                var wg sync.WaitGroup
-                                var feature Lines
-                                wg.Add(2)
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Attributes = parseGEOJSONAttributes(&gfeature)
-                                        feature.Name = gfeature.name
-                                        feature.StyleType = gfeature.styletype
-                                }()
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Points = deriveGEOJSONPoints(&gfeature,ch).Points
-                                        if len(feature.Points) < 1 {
-                                                wg.Done()
-                                                return
-                                        }
-                                }()
-                                wg.Wait()
-                                outdataset.Lines = append(outdataset.Lines, feature)
-
-                        case "Polygon","PolygonZ","polygon","polygonz":
-                                var wg sync.WaitGroup
-                                var feature Shapes
-                                wg.Add(2)
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Attributes = parseGEOJSONAttributes(&gfeature)
-                                        feature.Name = gfeature.name
-                                        feature.StyleType = gfeature.styletype
-                                }()
-                                go func() {
-                                        defer wg.Done()
-                                        feature.Points = deriveGEOJSONPoints(&gfeature,ch).Points
-                                        if len(feature.Points) < 1 {
-                                                wg.Done()
-                                                return
-                                        }
-                                }()
-                                wg.Wait()
-                                outdataset.Shapes = append(outdataset.Shapes, feature)
-                        }
-
-                }()
-        }
-
-        wg.Wait()
-
-        return err
+	return &outdataset, err
 }
 
+//ParseGEOJSONFeature processes each geojson feature into a Unity json feature
+func ParseGEOJSONFeature (gfeature *convert.FeatureInfo, outdataset *convert.Datasets) {
+        switch gfeature.Geojson.Geometry.Type {
 
-//parseGEOJSONAttributes ...
-func parseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
-        var atts []Attribute
-        for k, v := range gfeature.geojson.Properties {
-                switch v {
-                case nil, "", 0, "0":
-                        delete(gfeature.geojson.Properties, k)
-                        continue
+                // it appears the following is replicate, but with type asserstion and
+                // minute differences, the least complicated path is to replicate some
+                // elements.
+                case "Point", "Pointz":
+                        var wg sync.WaitGroup
+                        var feature convert.Points
+                        wg.Add(2)
+                        go func() {
+                                defer wg.Done()
+                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Name = gfeature.Name
+                                feature.StyleType = gfeature.StyleType
+                                feature.ID = gfeature.ID
+                        }()
+			go func() {
+                                defer wg.Done()
+                                feature.Points = ParseGEOJSONGeom(gfeature,container).Points
+                                if len(feature.Points) < 1 {
+                                        return
+                                }
+                        }()
+                        //feature.Points = (gfeature.Geojson.Geometry.Point)
+                        wg.Wait()
+                        outdataset.Points = append(outdataset.Points, feature)
+
+                case "LineString","LineStringZ":
+                        var wg sync.WaitGroup
+                        var feature convert.Lines
+                        wg.Add(2)
+                        go func() {
+                                defer wg.Done()
+                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Name = gfeature.Name
+                                feature.StyleType = gfeature.StyleType
+                                feature.ID = gfeature.ID
+                        }()
+                        go func() {
+				defer wg.Done()
+				feature.Points = ParseGEOJSONGeom(gfeature,container).Points
+				if len(feature.Points) < 1 {
+					return
+				}
+			}()
+                        //feature.Points = gfeature.Geojson.Geometry.LineString
+                        wg.Wait()
+                        outdataset.Lines = append(outdataset.Lines, feature)
+
+                case "Polygon","PolygonZ":
+                        var wg sync.WaitGroup
+                        var feature convert.Shapes
+                        wg.Add(2)
+                        go func() {
+                                defer wg.Done()
+                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Name = gfeature.Name
+                                feature.StyleType = gfeature.StyleType
+                                feature.ID = gfeature.ID
+                        }()
+			go func() {
+				defer wg.Done()
+				feature.Points = ParseGEOJSONGeom(gfeature,container).Points
+				if len(feature.Points) < 1 {
+					return
+				}
+			}()
+                        //feature.Points = gfeature.Geojson.Geometry.Polygon[0]
+                        wg.Wait()
+                        outdataset.Shapes = append(outdataset.Shapes, feature)
+
                 }
+}
+
+// ParseGEOJSONAttributes cleans & prepares all attributes
+func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
+        var atts []Attribute
+        for k, v := range gfeature.Geojson.Properties {
+
+                // by using switch on v, we don't need to reflect the interface.TypeOf()
+                switch v {
+                        case nil, "", 0, "0":
+                                delete(gfeature.Geojson.Properties, k)
+                                continue
+                }
+
+                // for the remaining keys with values....
                 switch k {
-                case "name":
-                        gfeature.name = fmt.Sprintf("%v", v)
-                case "styletype":
-                        gfeature.styletype = fmt.Sprintf("%v", v)
-                default:
-                        var attrib Attributes
-                        attrib.Key = k
-                        attrib.Value = fmt.Sprintf("%v", v)
-                        atts = append(atts, attrib)
+
+                        // v requires type assertion
+                        case "name":
+                                gfeature.Name = fmt.Sprintf("%v",v)
+                        case "styletype":
+                                gfeature.StyleType = fmt.Sprintf("%v",v)
+                        case "id","fid","osm_id","uid","uuid":
+                                gfeature.ID = fmt.Sprintf("%v",v)
+                        default:
+                                var attrib Attribute
+                                attrib.Key = k
+                                attrib.Value = fmt.Sprintf("%v",v)
+                                atts = append(atts, attrib)
                 }
         }
         return atts
 }
 
+//ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
+func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointArray {
+	var pointarray PointArray
 
-//deriveGEOJSONPoints ...
-func deriveGEOJSONPoints(gfeature *FeatureInfo, ch chan Point) PointArray {
-        var pointarray PointArray
+	// subsequently complex geometry types require traversing nested geometries
+	switch gfeature.Geojson.Geometry.Type {
 
-        switch gfeature.geojson.Geometry.Type {
+	case "Point", "Pointz":
+		point := checkCoords(gfeature.Geojson.Geometry.Point)
+		container.ch <- point
+                pointarray.Points = append(pointarray.Points, point)
 
-        case "Point","PointZ","point","pointz":
-                var z float64
-                x, y := To3857(gfeature.geojson.Geometry.Point[0], gfeature.geojson.Geometry.Point[1])
-                if x == 0 && y == 0 {
-                        return pointarray
-                }
-                if len(gfeature.geojson.Geometry.Point) < 3 {
-                        z, _ = getElev(x, y)
-                } else {
-                        z = gfeature.geojson.Geometry.Point[2]
-                }
+	case "LineString", "LineStringz":
+		for _, coord := range gfeature.Geojson.Geometry.LineString {
+			point := checkCoords(coord)
+			container.ch <- point
+                        pointarray.Points = append(pointarray.Points, point)
+		}
 
-                // keep a collective of the min / max coords of dataset
-                var point Coordinate
-                point.X = x
-                point.Y = y
-                ch <- point
+	case "Polygon", "Polygonz":
+		for _, coords := range gfeature.Geojson.Geometry.Polygon {
+			for _, coord := range coords {
+				point := checkCoords(coord)
+				container.ch <- point
+				pointarray.Points = append(pointarray.Points, point)
+			}
+		}
 
-                pointarray.Points = append(pointarray.Points, []float64{x, y, z})
+	}
 
-        case "LineString","LineStringZ","linestring","linestringz":
-                var z float64
-                for _, coords := range gfeature.geojson.Geometry.LineString {
-                        x, y := To3857(coords[0], coords[1])
-                        if x == 0 && y == 0 {
-                                continue
-                        }
-                        if len(coords) < 3 {
-                                z, _ = getElev(x, y)
-                        } else {
-                                z = coords[2]
-                        }
-
-                        // keep a collective of the min / max coords of dataset
-                        var point Coordinate
-                        point.X = x
-                        point.Y = y
-                        ch <- point
-
-                        pointarray.Points = append(pointarray.Points, []float64{x, y, z})
-                }
-
-        case "Polygon","PolygonZ","polygon","polygonz":
-                var z float64
-                for _, coords := range gfeature.geojson.Geometry.Polygon {
-                        for _, coord := range coords {
-                                x, y := To3857(coord[0], coord[1])
-                                if x == 0 && y == 0 {
-                                        continue
-                                }
-                                if len(coord) < 3 {
-                                        z, _ = getElev(x, y)
-                                } else {
-                                        z = coord[2]
-                                }
-
-                                // keep a collective of the min / max coords of dataset
-                                var point Coordinate
-                                point.X = x
-                                point.Y = y
-                                ch <- point
-
-                                pointarray.Points = append(pointarray.Points, []float64{x, y, z})
-                        }
-                }
-
-        }
-        return pointarray
+	return pointarray
 }
+
+// checkCoords ... enforces 3857 for X and Y, and fills Z if absent
+func checkCoords (coord []float64) []float64 {
+
+	// ommit coords that are malformed (no x and y, or more than xyz)
+	if len(coord) == 0 || len(coord) > 3 || coord[2] != nil {
+		return coord
+	}
+
+	var z float64
+
+	x, y := To3857(coord[0], coord[1])
+
+	// check for z value
+	if len(coord) < 3 {
+		z, _ = GetElev(x, y)
+	} else {
+		z = coord[2]
+	}
+
+	return []float64{x, y, z}
+}
+
+// initExtentContainer sets up all the elements of the empty struct
+func initExtentContainer () *ExtentContainer {
+        var container ExtentContainer
+
+        // the bbox extent that will observe and grow with coordinates
+        container.bbox = make(map[string]float64)
+
+        // the channel that carries the coordinates synchronously
+        container.ch = make(chan []float64)
+
+        // a wait group if sub go routines need to add to total
+        wg := sizedwaitgroup.New(maxRoutines)
+        container.wg = wg
+
+        // the bbox extent listener on the channel doing work with the coords
+        go BBOXListener(&container)
+
+        return &container
+}
+
