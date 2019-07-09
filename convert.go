@@ -426,6 +426,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                 // minute differences, the least complicated path is to replicate some
                 // elements.
                 case "Point", "Pointz","POINT":
+			log.Printf("working on point atts...")
                         var wg sync.WaitGroup
                         var feature Points
                         wg.Add(2)
@@ -448,6 +449,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         outdataset.Points = append(outdataset.Points, feature)
 
                 case "LineString","LineStringZ","LINESTRING":
+			log.Printf("working on line atts...")
                         var wg sync.WaitGroup
                         var feature Lines
                         wg.Add(2)
@@ -470,6 +472,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         outdataset.Lines = append(outdataset.Lines, feature)
 
                 case "Polygon","PolygonZ","POLYGON":
+			log.Printf("working on polygon atts...")
                         var wg sync.WaitGroup
                         var feature Shapes
                         wg.Add(2)
@@ -536,11 +539,13 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	switch gfeature.Geojson.Geometry.Type {
 
 	case "Point", "Pointz", "POINT":
+		log.Printf("working on point geom")
 		point := checkCoords(gfeature.Geojson.Geometry.Point)
 		if container != nil {container.ch <- point}
                 pointarray.Points = append(pointarray.Points, point)
 
 	case "LineString", "LineStringz","LINESTRING":
+		log.Printf("working on line geom")
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
 			point := checkCoords(coord)
 			if container != nil {container.ch <- point}
@@ -548,6 +553,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 		}
 
 	case "Polygon", "Polygonz","POLYGON":
+		log.Printf("working on polygon geom")
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
 				point := checkCoords(coord)
@@ -564,12 +570,16 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 // checkCoords ... enforces 3857 for X and Y, and fills Z if absent
 func checkCoords (coord []float64) []float64 {
 
+	log.Printf("checking coords...")
+
 	// ommit coords that are malformed (no x and y, or more than xyz)
 	if len(coord) == 0 {
 		return coord
 	} else if len(coord) > 2  && coord[2] != 0 {
 		return coord
 	}
+
+	log.Printf("%v",coord)
 
 	var z float64
 
