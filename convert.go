@@ -419,6 +419,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 
 //ParseGEOJSONFeature processes each geojson feature into a Unity json feature
 func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) {
+	log.Printf("parsing geojson feature....")
         switch gfeature.Geojson.Geometry.Type {
 
                 // it appears the following is replicate, but with type asserstion and
