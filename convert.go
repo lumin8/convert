@@ -574,6 +574,7 @@ func checkCoords (coord []float64) []float64 {
 	var z float64
 
 	length := len(coord)
+	log.Printf("%v",length)
 	log.Printf("%v",coord[0])
 	log.Printf("%v",coord[1])
 
