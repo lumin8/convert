@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"os/exec"
@@ -372,7 +371,7 @@ func To4326(x float64, y float64) (float64, float64) {
 
 // To3857 converts coordinates to EPSG:3857 projection
 func To3857(x float64, y float64) (float64, float64) {
-	if x <= 180 || x >= -180 {
+	if x >= -180 && x <= 180 {
 		mercPoint := geo.NewPoint(x, y)
 		geo.Mercator.Project(mercPoint)
 		x = mercPoint[0]
@@ -562,8 +561,6 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 // checkCoords ... enforces 3857 for X and Y, and fills Z if absent
 func checkCoords (coord []float64) []float64 {
 
-	log.Printf("checking coords...")
-
 	// ommit coords that are malformed (no x and y, or more than xyz)
 	if len(coord) == 0 {
 		return coord
@@ -573,14 +570,7 @@ func checkCoords (coord []float64) []float64 {
 
 	var z float64
 
-	length := len(coord)
-	log.Printf("%v",length)
-	log.Printf("%v",coord[0])
-	log.Printf("%v",coord[1])
-
 	x, y := To3857(coord[0], coord[1])
-
-	log.Printf("x: %v, y: %v",x,y)
 
 	// check for z value
 	if len(coord) < 3 {
@@ -588,8 +578,6 @@ func checkCoords (coord []float64) []float64 {
 	} else {
 		z = coord[2]
 	}
-
-	log.Printf("z: %v",z)
 
 	return []float64{x, y, z}
 }
