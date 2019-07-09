@@ -562,7 +562,9 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 func checkCoords (coord []float64) []float64 {
 
 	// ommit coords that are malformed (no x and y, or more than xyz)
-	if len(coord) == 0 || len(coord) > 2 {
+	if len(coord) == 0 {
+		return coord
+	} else if len(coord) > 2  && coord[2] != 0 {
 		return coord
 	}
 
