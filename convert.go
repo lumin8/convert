@@ -45,7 +45,7 @@ type Points struct {
 	Name       string      `json:"name" yaml:"name"`
 	StyleType  string      `json:"type" yaml:"type"`
 	Attributes []Attribute `json:"attributes" yaml:"attributes"`
-	Point      []float64   `json:"point" yaml:"point"`
+	Points     []float64   `json:"point" yaml:"point"`
 }
 
 // PointArrays ...
@@ -192,7 +192,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	rawjson, err := geojson.UnmarshalFeatureCollection(raw)
 
 	// this kicks off the processing of the data
-	outdataset, err := ParseGEOJSONCollection(rawjson, container)
+	outdataset, err := parseGEOJSONCollection(rawjson, container)
 	if err != nil {
 		return outdataset, err
 	}
@@ -243,8 +243,8 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	// keep a collective of the min / max coords of dataset
 	container.ch <- coord
 
-	// fill in the point float array
-	point.Point = append(point.Point, coord[0], coord[1], coord[2])
+	// fill in the poiiint float array
+	point.Points = append(point.Points, coord[0], coord[1], coord[2])
 
 	// finally, append point to the final dataset
 	outdataset.Points = append(outdataset.Points, point)
@@ -386,7 +386,7 @@ func To3857(x float64, y float64) (float64, float64) {
 }
 
 //ParseGEOJSONCollection peels into the collection multiple features
-func ParseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error) {
+func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error) {
 	var outdataset Datasets
 	var err error
 
@@ -408,7 +408,7 @@ func ParseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 			defer container.wg.Done()
 
 			// process each feature independently
-			ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets)
+			ParseGEOJSONFeature(&gfeature, &outdataset, container)
 		}()
 	}
 
@@ -418,7 +418,7 @@ func ParseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 }
 
 //ParseGEOJSONFeature processes each geojson feature into a Unity json feature
-func ParseGEOJSONFeature (gfeature *convert.FeatureInfo, outdataset *convert.Datasets) {
+func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) {
         switch gfeature.Geojson.Geometry.Type {
 
                 // it appears the following is replicate, but with type asserstion and
@@ -426,18 +426,18 @@ func ParseGEOJSONFeature (gfeature *convert.FeatureInfo, outdataset *convert.Dat
                 // elements.
                 case "Point", "Pointz":
                         var wg sync.WaitGroup
-                        var feature convert.Points
+                        var feature Points
                         wg.Add(2)
                         go func() {
                                 defer wg.Done()
-                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Attributes = ParseGEOJSONAttributes(gfeature)
                                 feature.Name = gfeature.Name
                                 feature.StyleType = gfeature.StyleType
                                 feature.ID = gfeature.ID
                         }()
 			go func() {
                                 defer wg.Done()
-                                feature.Points = ParseGEOJSONGeom(gfeature,container).Points
+                                feature.Points = ParseGEOJSONGeom(gfeature,container).Points[0]
                                 if len(feature.Points) < 1 {
                                         return
                                 }
@@ -448,11 +448,11 @@ func ParseGEOJSONFeature (gfeature *convert.FeatureInfo, outdataset *convert.Dat
 
                 case "LineString","LineStringZ":
                         var wg sync.WaitGroup
-                        var feature convert.Lines
+                        var feature Lines
                         wg.Add(2)
                         go func() {
                                 defer wg.Done()
-                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Attributes = ParseGEOJSONAttributes(gfeature)
                                 feature.Name = gfeature.Name
                                 feature.StyleType = gfeature.StyleType
                                 feature.ID = gfeature.ID
@@ -470,11 +470,11 @@ func ParseGEOJSONFeature (gfeature *convert.FeatureInfo, outdataset *convert.Dat
 
                 case "Polygon","PolygonZ":
                         var wg sync.WaitGroup
-                        var feature convert.Shapes
+                        var feature Shapes
                         wg.Add(2)
                         go func() {
                                 defer wg.Done()
-                                feature.Attributes = convert.ParseGEOJSONAttributes(gfeature)
+                                feature.Attributes = ParseGEOJSONAttributes(gfeature)
                                 feature.Name = gfeature.Name
                                 feature.StyleType = gfeature.StyleType
                                 feature.ID = gfeature.ID
@@ -534,13 +534,13 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 
 	case "Point", "Pointz":
 		point := checkCoords(gfeature.Geojson.Geometry.Point)
-		container.ch <- point
+		if container != nil {container.ch <- point}
                 pointarray.Points = append(pointarray.Points, point)
 
 	case "LineString", "LineStringz":
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
 			point := checkCoords(coord)
-			container.ch <- point
+			if container != nil {container.ch <- point}
                         pointarray.Points = append(pointarray.Points, point)
 		}
 
@@ -548,7 +548,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
 				point := checkCoords(coord)
-				container.ch <- point
+				if container != nil {container.ch <- point}
 				pointarray.Points = append(pointarray.Points, point)
 			}
 		}
@@ -562,7 +562,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 func checkCoords (coord []float64) []float64 {
 
 	// ommit coords that are malformed (no x and y, or more than xyz)
-	if len(coord) == 0 || len(coord) > 3 || coord[2] != nil {
+	if len(coord) == 0 || len(coord) > 3 || coord[2] != 0 {
 		return coord
 	}
 
