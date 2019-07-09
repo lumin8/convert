@@ -564,19 +564,20 @@ func checkCoords (coord []float64) []float64 {
 	// ommit coords that are malformed (no x and y, or more than xyz)
 	if len(coord) == 0 {
 		return coord
-	} else if len(coord) > 2  && coord[2] != 0 {
-		return coord
 	}
+
+	length = len(coord)
 
 	var z float64
 
 	x, y := To3857(coord[0], coord[1])
 
-	// check for z value
-	if len(coord) < 3 {
-		z, _ = GetElev(x, y)
-	} else {
+	// if z value already present, don't do anything
+	if length > 2 && coord[2] != 0 {
 		z = coord[2]
+	} else  {
+		// fill z value
+		z, _ = GetElev(x, y)
 	}
 
 	return []float64{x, y, z}
