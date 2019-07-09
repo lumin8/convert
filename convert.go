@@ -420,7 +420,6 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 
 //ParseGEOJSONFeature processes each geojson feature into a Unity json feature
 func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) {
-	log.Printf("parsing geojson feature....")
         switch gfeature.Geojson.Geometry.Type {
 
                 // it appears the following is replicate, but with type asserstion and
@@ -497,7 +496,8 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
 
 // ParseGEOJSONAttributes cleans & prepares all attributes
 func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
-        var atts []Attribute
+        log.Println("parsing geojson attributes...")
+	var atts []Attribute
         for k, v := range gfeature.Geojson.Properties {
 
                 // by using switch on v, we don't need to reflect the interface.TypeOf()
@@ -529,6 +529,7 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 
 //ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
 func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointArray {
+	log.Printf("parsing geojson geom...."
 	var pointarray PointArray
 
 	// subsequently complex geometry types require traversing nested geometries
