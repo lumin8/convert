@@ -529,7 +529,7 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 
 //ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
 func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointArray {
-	log.Printf("parsing geojson geom...."
+	log.Printf("parsing geojson geom....")
 	var pointarray PointArray
 
 	// subsequently complex geometry types require traversing nested geometries
