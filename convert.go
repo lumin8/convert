@@ -426,7 +426,6 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                 // minute differences, the least complicated path is to replicate some
                 // elements.
                 case "Point", "Pointz","POINT":
-			log.Printf("working on point atts...")
                         var wg sync.WaitGroup
                         var feature Points
                         wg.Add(2)
@@ -449,7 +448,6 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         outdataset.Points = append(outdataset.Points, feature)
 
                 case "LineString","LineStringZ","LINESTRING":
-			log.Printf("working on line atts...")
                         var wg sync.WaitGroup
                         var feature Lines
                         wg.Add(2)
@@ -472,7 +470,6 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         outdataset.Lines = append(outdataset.Lines, feature)
 
                 case "Polygon","PolygonZ","POLYGON":
-			log.Printf("working on polygon atts...")
                         var wg sync.WaitGroup
                         var feature Shapes
                         wg.Add(2)
@@ -499,7 +496,6 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
 
 // ParseGEOJSONAttributes cleans & prepares all attributes
 func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
-        log.Println("parsing geojson attributes...")
 	var atts []Attribute
         for k, v := range gfeature.Geojson.Properties {
 
@@ -532,20 +528,17 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 
 //ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
 func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointArray {
-	log.Printf("parsing geojson geom....")
 	var pointarray PointArray
 
 	// subsequently complex geometry types require traversing nested geometries
 	switch gfeature.Geojson.Geometry.Type {
 
 	case "Point", "Pointz", "POINT":
-		log.Printf("working on point geom")
 		point := checkCoords(gfeature.Geojson.Geometry.Point)
 		if container != nil {container.ch <- point}
                 pointarray.Points = append(pointarray.Points, point)
 
 	case "LineString", "LineStringz","LINESTRING":
-		log.Printf("working on line geom")
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
 			point := checkCoords(coord)
 			if container != nil {container.ch <- point}
@@ -553,7 +546,6 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 		}
 
 	case "Polygon", "Polygonz","POLYGON":
-		log.Printf("working on polygon geom")
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
 				point := checkCoords(coord)
@@ -579,11 +571,11 @@ func checkCoords (coord []float64) []float64 {
 		return coord
 	}
 
-	log.Printf("%v",coord)
-
 	var z float64
 
 	x, y := To3857(coord[0], coord[1])
+
+	log.Printf("x: %v, y: %v",x,y)
 
 	// check for z value
 	if len(coord) < 3 {
@@ -591,6 +583,8 @@ func checkCoords (coord []float64) []float64 {
 	} else {
 		z = coord[2]
 	}
+
+	log.Printf("z: %v",z)
 
 	return []float64{x, y, z}
 }
