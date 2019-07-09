@@ -101,7 +101,7 @@ const (
 	envDEMVRT = "DEMVRT"
 
 	// process limits for the sized wait group
-	maxRoutines = 50
+	maxRoutines = 500
 )
 
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
