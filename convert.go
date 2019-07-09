@@ -107,7 +107,7 @@ const (
 
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
 // Note: if the file is moved or deleted the path will not change
-var demvrt = "/data/dem/hdt/earthdem.vrt"
+var demvrt = ""
 
 // demvrtPath is used to resolve the path for the dem.vrt file
 func demvrtPath() (string, error) {
