@@ -424,7 +424,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                 // it appears the following is replicate, but with type asserstion and
                 // minute differences, the least complicated path is to replicate some
                 // elements.
-                case "Point", "Pointz":
+                case "Point", "Pointz","POINT":
                         var wg sync.WaitGroup
                         var feature Points
                         wg.Add(2)
@@ -446,7 +446,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         wg.Wait()
                         outdataset.Points = append(outdataset.Points, feature)
 
-                case "LineString","LineStringZ":
+                case "LineString","LineStringZ","LINESTRING":
                         var wg sync.WaitGroup
                         var feature Lines
                         wg.Add(2)
@@ -468,7 +468,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         wg.Wait()
                         outdataset.Lines = append(outdataset.Lines, feature)
 
-                case "Polygon","PolygonZ":
+                case "Polygon","PolygonZ","POLYGON":
                         var wg sync.WaitGroup
                         var feature Shapes
                         wg.Add(2)
@@ -532,19 +532,19 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	// subsequently complex geometry types require traversing nested geometries
 	switch gfeature.Geojson.Geometry.Type {
 
-	case "Point", "Pointz":
+	case "Point", "Pointz", "POINT":
 		point := checkCoords(gfeature.Geojson.Geometry.Point)
 		if container != nil {container.ch <- point}
                 pointarray.Points = append(pointarray.Points, point)
 
-	case "LineString", "LineStringz":
+	case "LineString", "LineStringz","LINESTRING":
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
 			point := checkCoords(coord)
 			if container != nil {container.ch <- point}
                         pointarray.Points = append(pointarray.Points, point)
 		}
 
-	case "Polygon", "Polygonz":
+	case "Polygon", "Polygonz","POLYGON":
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
 				point := checkCoords(coord)
