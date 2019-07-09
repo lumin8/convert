@@ -534,7 +534,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	switch gfeature.Geojson.Geometry.Type {
 
 	case "Point", "Pointz", "POINT":
-		point := checkCoords(gfeature.Geojson.Geometry.Point)
+		point := checkCoords(gfeature.Geojson.Geometry.Point[0])
 		if container != nil {container.ch <- point}
                 pointarray.Points = append(pointarray.Points, point)
 
