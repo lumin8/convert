@@ -566,7 +566,7 @@ func checkCoords (coord []float64) []float64 {
 		return coord
 	}
 
-	length = len(coord)
+	length := len(coord)
 
 	var z float64
 
