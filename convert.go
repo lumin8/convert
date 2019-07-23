@@ -2,18 +2,18 @@ package convert
 
 import (
 	"encoding/csv"
+	"path/filepath"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/golang/geo/s2"
+	"github.com/lumin8/elev-utils"
 	"github.com/paulmach/go.geo"
 	"github.com/paulmach/go.geojson"
 	"github.com/remeh/sizedwaitgroup"
@@ -335,26 +335,18 @@ func s2covering(bbox map[string]float64) []string {
 
 // GetElev gets the elevation for the given x y coordinate
 func GetElev(x float64, y float64) (float64, error) {
-	lon, lat := To4326(x, y)
+	// outputs in meters, works regardless of input projection
+        lon, lat := To4326(x, y)
 
-	var zstr string
+	// get path of dem dir, not vrt itself
+	demdir, _ := filepath.Split(demvrt)
 
-	xstr := strconv.FormatFloat(lon, 'f', -2, 64)
-	ystr := strconv.FormatFloat(lat, 'f', -2, 64)
-
-	demvrt, err := demvrtPath()
+	z, err := srtm.ElevationFromLatLon(demdir,lat,lon)
 	if err != nil {
-		return 0, err
+		return z, err
 	}
 
-	cmd := "gdallocationinfo -valonly " + demvrt + " -geoloc " + xstr + " " + ystr
-	zbyte, err := exec.Command("sh", "-c", cmd).Output()
-	if err != nil {
-		return 0, err
-	}
-	zstr = strings.TrimSpace(string(zbyte))
-	z, _ := strconv.ParseFloat(zstr, 64)
-	return z, err
+	return z, nil
 }
 
 // To4326 converts coordinates to EPSG:4326 projection
@@ -515,6 +507,9 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
                                 gfeature.StyleType = fmt.Sprintf("%v",v)
                         case "id","fid","osm_id","uid","uuid":
                                 gfeature.ID = fmt.Sprintf("%v",v)
+			// omit some keys we never care about
+			case "tags":
+				//do nothing
                         default:
                                 var attrib Attribute
                                 attrib.Key = k
