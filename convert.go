@@ -128,6 +128,7 @@ func demvrtPath() (string, error) {
 		return "", fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
 	}
 	demvrt = dvp
+
 	return dvp, nil
 }
 
@@ -177,7 +178,7 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	// configure the s2 array... in 4326
 	outdataset.S2 = s2covering(container.bbox)
 
-	return &outdataset, err
+	return &outdataset, nil
 }
 
 // DatasetFromGEOJSON ...
@@ -208,7 +209,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	// configure the s2 array... in 4326
 	outdataset.S2 = s2covering(container.bbox)
 
-	return outdataset, err
+	return outdataset, nil
 }
 
 // ParseCSV ...
@@ -239,10 +240,10 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	}
 
 	// enforce 3857 and elevation
-	coord, err := checkCoords(xyz)
+	coord, err := CheckCoords(xyz)
 	if err != nil {
-		// we removed a bunk coordinate, no need to throw an error
-		// TBD should a whole upload fail if one coord is junk
+		// skip a bunk coordinate
+		return
 	}
 
 	// keep a collective of the min / max coords of dataset
@@ -395,6 +396,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 	var err error
 
 	if len(collection.Features) < 1 {
+		err = errors.New("no features to parse")
 		return &outdataset, err
 	}
 
@@ -418,7 +420,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 
 	container.wg.Wait()
 
-	return &outdataset, err
+	return &outdataset, nil
 }
 
 //ParseGEOJSONFeature processes each geojson feature into a Unity json feature
@@ -541,7 +543,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 
 	// do not let coordinates be written if they have no z value
 	case "Point", "Pointz":
-		point,err := checkCoords(gfeature.Geojson.Geometry.Point)
+		point,err := CheckCoords(gfeature.Geojson.Geometry.Point)
 		if container != nil && err == nil {
 			container.ch <- point
 			pointarray.Points = append(pointarray.Points, point)
@@ -549,7 +551,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 
 	case "LineString", "LineStringz":
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
-			point,err := checkCoords(coord)
+			point,err := CheckCoords(coord)
 			if container != nil && err == nil {
 				container.ch <- point
 				pointarray.Points = append(pointarray.Points, point)
@@ -559,7 +561,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	case "Polygon", "Polygonz":
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
-				point,err := checkCoords(coord)
+				point,err := CheckCoords(coord)
 				if container != nil && err == nil {
 					container.ch <- point
 					pointarray.Points = append(pointarray.Points, point)
@@ -572,33 +574,43 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	return pointarray
 }
 
-// checkCoords ... enforces 3857 for X and Y, and fills Z if absent
-func checkCoords (coord []float64) ([]float64, error) {
+// CheckCoords ... enforces 3857 for X and Y, and fills Z if absent
+func CheckCoords (coord []float64) ([]float64, error) {
 	var err error
         var z float64
 
-	coords := len(coord)
+        values := len(coord)
 
-	// coords are []{x, y, z}
-	switch coords {
-		case 0, 1:
-			// coordinate is bunk
-			err = errors.New("missing x, y")
-		case 2:
-			// z is needed
-			z, err = GetElev(coord[0], coord[1])
-			if err == nil {
-				coord = append(coord, z)
-			}
-		case 3:
-			// z is already present, do nothing
-		default:
-			// who the hell knows but play it safe
-			err = errors.New("too many coords")
-	}
+        // coords are []{x, y, z}
+        switch values {
+                case 0, 1:
+                        // coordinate is bunk
+                        err = errors.New("missing x, y")
 
-	// err nil here by default, grouped all into a single return
-	return coord, err
+                case 2:
+                        // enforce 3857
+                        x, y := To3857(coord[0],coord[1])
+
+                        // z is needed
+                        z, err = GetElev(x, y)
+                        if err == nil { 
+                                coord = []float64{x, y, z}
+                        }
+
+                case 3:
+                        // enforce 3857
+                        x, y := To3857(coord[0],coord[1])
+
+                        // z is already present, use it
+                        coord = []float64{x, y, coord[2]}
+
+                default:
+                        // who the hell knows but play it safe
+                        err = errors.New("too many coords")
+        }
+
+        // err nil here by default, grouped all into a single return
+        return coord, err
 }
 
 // initExtentContainer sets up all the elements of the empty struct
