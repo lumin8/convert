@@ -2,13 +2,14 @@ package convert
 
 import (
 	"encoding/csv"
-	"path/filepath"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -97,11 +98,11 @@ type ExtentContainer struct {
 }
 
 const (
-	// env var for the dem.vrt path
+	// env var for the dem.ver path
 	envDEMVRT = "DEMVRT"
 
 	// process limits for the sized wait group
-	maxRoutines = 500
+	maxRoutines = 50
 )
 
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
@@ -238,7 +239,11 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	}
 
 	// enforce 3857 and elevation
-	coord := checkCoords(xyz)
+	coord, err := checkCoords(xyz)
+	if err != nil {
+		// we removed a bunk coordinate, no need to throw an error
+		// TBD should a whole upload fail if one coord is junk
+	}
 
 	// keep a collective of the min / max coords of dataset
 	container.ch <- coord
@@ -338,11 +343,18 @@ func GetElev(x float64, y float64) (float64, error) {
 	// outputs in meters, works regardless of input projection
         lon, lat := To4326(x, y)
 
-	// get path of dem dir, not vrt itself
-	demdir, _ := filepath.Split(demvrt)
+        // get path of dem dir, not vrt itself
+        demdir, filename := filepath.Split(demvrt)
 
-	z, err := srtm.ElevationFromLatLon(demdir,lat,lon)
-	if err != nil {
+	// call the elevation service
+        z, err := srtm.ElevationFromLatLon(demdir,lat,lon)
+        if err != nil {
+                return z, err
+        }
+
+	// raise an error if z not found
+	if math.IsNaN(z) == true {
+		err = errors.New("can not find value for Z or srtm tile" + filename)
 		return z, err
 	}
 
@@ -351,7 +363,7 @@ func GetElev(x float64, y float64) (float64, error) {
 
 // To4326 converts coordinates to EPSG:4326 projection
 func To4326(x float64, y float64) (float64, float64) {
-	if x >= 180 || x <= -180 {
+	if x > 180 || x < -180 || y > 180 || y < -180 {
 		mercPoint := geo.NewPoint(x, y)
 		geo.Mercator.Inverse(mercPoint)
 		x = mercPoint[0]
@@ -363,7 +375,7 @@ func To4326(x float64, y float64) (float64, float64) {
 
 // To3857 converts coordinates to EPSG:3857 projection
 func To3857(x float64, y float64) (float64, float64) {
-	if x >= -180 && x <= 180 {
+	if x >= -180 && x <= 180 && y >= -180 && y <= 180 {
 		mercPoint := geo.NewPoint(x, y)
 		geo.Mercator.Project(mercPoint)
 		x = mercPoint[0]
@@ -416,7 +428,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                 // it appears the following is replicate, but with type asserstion and
                 // minute differences, the least complicated path is to replicate some
                 // elements.
-                case "Point", "Pointz","POINT":
+                case "Point", "Pointz":
                         var wg sync.WaitGroup
                         var feature Points
                         wg.Add(2)
@@ -438,7 +450,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         wg.Wait()
                         outdataset.Points = append(outdataset.Points, feature)
 
-                case "LineString","LineStringZ","LINESTRING":
+                case "LineString","LineStringZ":
                         var wg sync.WaitGroup
                         var feature Lines
                         wg.Add(2)
@@ -460,7 +472,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         wg.Wait()
                         outdataset.Lines = append(outdataset.Lines, feature)
 
-                case "Polygon","PolygonZ","POLYGON":
+                case "Polygon","PolygonZ":
                         var wg sync.WaitGroup
                         var feature Shapes
                         wg.Add(2)
@@ -487,7 +499,7 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
 
 // ParseGEOJSONAttributes cleans & prepares all attributes
 func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
-	var atts []Attribute
+        var atts []Attribute
         for k, v := range gfeature.Geojson.Properties {
 
                 // by using switch on v, we don't need to reflect the interface.TypeOf()
@@ -507,9 +519,8 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
                                 gfeature.StyleType = fmt.Sprintf("%v",v)
                         case "id","fid","osm_id","uid","uuid":
                                 gfeature.ID = fmt.Sprintf("%v",v)
-			// omit some keys we never care about
 			case "tags":
-				//do nothing
+                                  //do nothing
                         default:
                                 var attrib Attribute
                                 attrib.Key = k
@@ -527,24 +538,32 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 	// subsequently complex geometry types require traversing nested geometries
 	switch gfeature.Geojson.Geometry.Type {
 
-	case "Point", "Pointz", "POINT":
-		point := checkCoords(gfeature.Geojson.Geometry.Point)
-		if container != nil {container.ch <- point}
-                pointarray.Points = append(pointarray.Points, point)
 
-	case "LineString", "LineStringz","LINESTRING":
-		for _, coord := range gfeature.Geojson.Geometry.LineString {
-			point := checkCoords(coord)
-			if container != nil {container.ch <- point}
-                        pointarray.Points = append(pointarray.Points, point)
+	// do not let coordinates be written if they have no z value
+	case "Point", "Pointz":
+		point,err := checkCoords(gfeature.Geojson.Geometry.Point)
+		if container != nil && err == nil {
+			container.ch <- point
+			pointarray.Points = append(pointarray.Points, point)
 		}
 
-	case "Polygon", "Polygonz","POLYGON":
+	case "LineString", "LineStringz":
+		for _, coord := range gfeature.Geojson.Geometry.LineString {
+			point,err := checkCoords(coord)
+			if container != nil && err == nil {
+				container.ch <- point
+				pointarray.Points = append(pointarray.Points, point)
+			}
+		}
+
+	case "Polygon", "Polygonz":
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
-				point := checkCoords(coord)
-				if container != nil {container.ch <- point}
-				pointarray.Points = append(pointarray.Points, point)
+				point,err := checkCoords(coord)
+				if container != nil && err == nil {
+					container.ch <- point
+					pointarray.Points = append(pointarray.Points, point)
+				}
 			}
 		}
 
@@ -554,28 +573,32 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 }
 
 // checkCoords ... enforces 3857 for X and Y, and fills Z if absent
-func checkCoords (coord []float64) []float64 {
+func checkCoords (coord []float64) ([]float64, error) {
+	var err error
+        var z float64
 
-	// ommit coords that are malformed (no x and y, or more than xyz)
-	if len(coord) == 0 {
-		return coord
+	coords := len(coord)
+
+	// coords are []{x, y, z}
+	switch coords {
+		case 0, 1:
+			// coordinate is bunk
+			err = errors.New("missing x, y")
+		case 2:
+			// z is needed
+			z, err = GetElev(coord[0], coord[1])
+			if err == nil {
+				coord = append(coord, z)
+			}
+		case 3:
+			// z is already present, do nothing
+		default:
+			// who the hell knows but play it safe
+			err = errors.New("too many coords")
 	}
 
-	length := len(coord)
-
-	var z float64
-
-	x, y := To3857(coord[0], coord[1])
-
-	// if z value already present, don't do anything
-	if length > 2 && coord[2] != 0 {
-		z = coord[2]
-	} else  {
-		// fill z value
-		z, _ = GetElev(x, y)
-	}
-
-	return []float64{x, y, z}
+	// err nil here by default, grouped all into a single return
+	return coord, err
 }
 
 // initExtentContainer sets up all the elements of the empty struct
