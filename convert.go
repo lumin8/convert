@@ -118,7 +118,6 @@ func init () {
 	fmt.Printf("***Initialization Complete: DEM found at: %s***\n",demloc)
 }
 
-
 // demvrtPath is used to resolve the path for the dem.vrt file
 func demvrtPath() (string, error) {
 	if demvrt != "" {
