@@ -109,17 +109,8 @@ const (
 // Note: if the file is moved or deleted the path will not change
 var demvrt = ""
 
-func init () {
-	demloc, err := demvrtPath()
-	if err != nil {
-		fmt.Printf("%s",err.Error())
-		return
-	}
-	fmt.Printf("***Initialization Complete: DEM found at: %s***\n",demloc)
-}
-
 // demvrtPath is used to resolve the path for the dem.vrt file
-func demvrtPath() (string, error) {
+func DemVrtPath() (string, error) {
 	if demvrt != "" {
 		return demvrt, nil
 	}
