@@ -442,7 +442,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 
 //ParseGEOJSONFeature processes each geojson feature into a Unity json feature
 func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) {
-        switch gfeature.Geojson.Geometry.Type {
+	switch gfeature.Geojson.Geometry.Type {
 
                 // it appears the following is replicate, but with type asserstion and
                 // minute differences, the least complicated path is to replicate some
@@ -460,10 +460,11 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         }()
 			go func() {
                                 defer wg.Done()
-                                feature.Points = ParseGEOJSONGeom(gfeature,container).Points[0]
-                                if len(feature.Points) < 1 {
+                                points, err := ParseGEOJSONGeom(gfeature,container)
+                                if err != nil || len(points.Points) < 1 {
                                         return
                                 }
+				feature.Points = points.Points[0]
                         }()
                         //feature.Points = (gfeature.Geojson.Geometry.Point)
                         wg.Wait()
@@ -482,10 +483,11 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         }()
                         go func() {
 				defer wg.Done()
-				feature.Points = ParseGEOJSONGeom(gfeature,container).Points
-				if len(feature.Points) < 1 {
+				points, err := ParseGEOJSONGeom(gfeature,container)
+				if err != nil || len(points.Points) < 1 {
 					return
 				}
+				feature.Points = points.Points
 			}()
                         //feature.Points = gfeature.Geojson.Geometry.LineString
                         wg.Wait()
@@ -504,10 +506,11 @@ func ParseGEOJSONFeature (gfeature *FeatureInfo, outdataset *Datasets, container
                         }()
 			go func() {
 				defer wg.Done()
-				feature.Points = ParseGEOJSONGeom(gfeature,container).Points
-				if len(feature.Points) < 1 {
+				points, err := ParseGEOJSONGeom(gfeature,container)
+				if err != nil || len(points.Points) < 1 {
 					return
 				}
+				feature.Points = points.Points
 			}()
                         //feature.Points = gfeature.Geojson.Geometry.Polygon[0]
                         wg.Wait()
@@ -551,8 +554,9 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 }
 
 //ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
-func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointArray {
+func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointArray, error) {
 	var pointarray PointArray
+	var err error
 
 	// subsequently complex geometry types require traversing nested geometries
 	switch gfeature.Geojson.Geometry.Type {
@@ -588,7 +592,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) PointAr
 
 	}
 
-	return pointarray
+	return pointarray, err
 }
 
 // CheckCoords ... enforces 3857 for X and Y, and fills Z if absent
