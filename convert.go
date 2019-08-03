@@ -109,7 +109,7 @@ const (
 // Note: if the file is moved or deleted the path will not change
 var demvrt = ""
 
-// demvrtPath is used to resolve the path for the dem.vrt file
+// DemVrtPath is used to resolve the path for the dem.vrt file
 func DemVrtPath() (string, error) {
 	if demvrt != "" {
 		return demvrt, nil
@@ -127,13 +127,31 @@ func DemVrtPath() (string, error) {
 	if _, err := os.Stat(dvp); err != nil {
 		return "", fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
 	}
+
 	demvrt = dvp
 
 	return dvp, nil
 }
 
+// initialize the dependencies
+func init() {
+        dem, err := DemVrtPath()
+
+        if err != nil {
+                fmt.Printf("%s",err.Error())
+        }
+
+        fmt.Printf("world digital elevation model (DEM) found at %s",dem)
+}
+
+
 // DatasetFromCSV ...
 func DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
+
+	if _, err := os.Stat(demvrt); err != nil {
+                return nil, fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+        }
+
 	var outdataset Datasets
 
 	raw, err := csv.NewReader(contents).ReadAll()
@@ -177,7 +195,10 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	close(container.ch)
 
 	// configure the center point... in 4326
-	c := getCenter(container.bbox)
+	c, err := getCenter(container.bbox)
+	if err != nil {
+                return nil, err
+        }
 	outdataset.Center = append(outdataset.Center, c)
 
 	// configure the s2 array... in 4326
@@ -189,6 +210,10 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 // DatasetFromGEOJSON ...
 func DatasetFromGEOJSON(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
 	var outdataset *Datasets
+
+	if _, err := os.Stat(demvrt); err != nil {
+                return nil, fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+        }
 
 	raw, err := ioutil.ReadAll(contents)
 	if err != nil {
@@ -218,7 +243,11 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	close(container.ch)
 
 	// configure the center point... in 4326
-	c := getCenter(container.bbox)
+	c, err := getCenter(container.bbox)
+	if err != nil {
+		err = errors.New("No center of dataset, which means the dataset is invalid")
+		return outdataset, err
+	}
 	outdataset.Center = append(outdataset.Center, c)
 
 	// configure the s2 array... in 4326
@@ -310,24 +339,40 @@ func BBOXListener(container *ExtentContainer) {
 }
 
 // getCenter calculates the center of a bbox extent
-func getCenter(bbox map[string]float64) Point {
+func getCenter(bbox map[string]float64) (Point, error) {
+	var err error
 	var c Point
 	c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
 	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
-	c.Z, _ = GetElev(c.X, c.Y)
 
-	return c
+	//get the center of the bbox
+	c.Z, err = GetElev(c.X, c.Y)
+	if err != nil {
+                // ok to return empty center
+                return c, err
+        }
+
+	return c, nil
 }
 
 // s2covering finds the s2 hash key that represents the geographic coverage of the bbox extent
 func s2covering(bbox map[string]float64) []string {
 	var s2hash []string
 
+	// don't panic if bbox is empty... it means we had a bunk dataset
+	if len(bbox) < 4 {
+		// ok to return empty s2hash
+		return s2hash
+	}
+
 	rx, uy := To4326(bbox["rx"], bbox["uy"])
 	lx, ly := To4326(bbox["lx"], bbox["ly"])
+
+	// gets final elevation for center calculated point
 	cz, err := GetElev(bbox["rx"], bbox["uy"])
 	if err != nil {
-		fmt.Println(err)
+		// ok to return empty s2hash
+		return s2hash
 	}
 
 	pts := []s2.Point{
@@ -359,8 +404,12 @@ func GetElev(x float64, y float64) (float64, error) {
 	// outputs in meters, works regardless of input projection
 	lon, lat := To4326(x, y)
 
-	// get path of dem dir, not vrt itself
+	// get path of dem dir, not vrt itself which is the second variable _
 	demdir, _ := filepath.Split(demvrt)
+
+	if _, err := os.Stat(demdir); err != nil {
+		return math.NaN(), err
+	}
 
 	// call the elevation service
         z, err := srtm.ElevationFromLatLon(demdir,lat,lon)
@@ -556,43 +605,84 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 //ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
 func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointArray, error) {
 	var pointarray PointArray
+	var invalidCount int
 	var err error
 
 	// subsequently complex geometry types require traversing nested geometries
 	switch gfeature.Geojson.Geometry.Type {
 
-
 	// do not let coordinates be written if they have no z value
 	case "Point", "Pointz":
-		point,err := CheckCoords(gfeature.Geojson.Geometry.Point)
-		if container != nil && err == nil {
+
+		point, err := CheckCoords(gfeature.Geojson.Geometry.Point)
+
+		if err != nil {
+			return pointarray, err
+		}
+
+		// only proceed if coordinate is valid
+		container.ch <- point
+		pointarray.Points = append(pointarray.Points, point)
+
+		return pointarray, nil
+
+	case "LineString", "LineStringz":
+
+		for _, coord := range gfeature.Geojson.Geometry.LineString {
+			point, newErr := CheckCoords(coord)
+
+			if newErr != nil {
+				err = newErr
+				invalidCount ++
+				continue
+			}
+
+			// only proceed if coordinate is valid
 			container.ch <- point
 			pointarray.Points = append(pointarray.Points, point)
 		}
 
-	case "LineString", "LineStringz":
-		for _, coord := range gfeature.Geojson.Geometry.LineString {
-			point,err := CheckCoords(coord)
-			if container != nil && err == nil {
+		// lines must have at least two coordinates to be valid
+		if len(pointarray.Points) < 2 {
+			err = errors.New("not enough valid points to create linestring: " + err.Error())
+		}
+
+		// return pointarray and errors (if any)
+		return pointarray, err
+
+	case "Polygon", "Polygonz":
+
+		for _, coords := range gfeature.Geojson.Geometry.Polygon {
+			for _, coord := range coords {
+				point, newErr := CheckCoords(coord)
+
+				if newErr != nil {
+					err = newErr
+					invalidCount ++
+					continue
+				}
+
+				// only proceed if coordinate is valid
 				container.ch <- point
 				pointarray.Points = append(pointarray.Points, point)
 			}
 		}
 
-	case "Polygon", "Polygonz":
-		for _, coords := range gfeature.Geojson.Geometry.Polygon {
-			for _, coord := range coords {
-				point,err := CheckCoords(coord)
-				if container != nil && err == nil {
-					container.ch <- point
-					pointarray.Points = append(pointarray.Points, point)
-				}
-			}
+		// polygons must have at least three coordinates to be valid
+		if len(pointarray.Points) < 3 {
+			err = errors.New("not enough valid points to create polygon: " + err.Error())
 		}
 
-	}
+		// return pointarray and errors (if any)
+		return pointarray, err
 
-	return pointarray, err
+	// catch all in case geometry is not recognized
+	default:
+		err = errors.New("geometery type is not recognized")
+
+		return pointarray, nil
+
+	}
 }
 
 // CheckCoords ... enforces 3857 for X and Y, and fills Z if absent
