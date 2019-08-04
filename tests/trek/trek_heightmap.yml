@@ -1,0 +1,13 @@
+trek_heightmap:
+    srs: 3857
+    units: meters
+    world:
+        height_z_min: 679
+        height_z_max: 1999
+        height_z_diff: 1320
+        width_x: 6539
+        length_y: 6759
+    unity:
+        width_x: 6539
+        height_y: 1320
+        length_z: 6756

@@ -1,0 +1,14 @@
+{  
+  "id": 1,
+  "xfield": "utm_east",
+  "yfield": "utm_north",
+  "zfield": "elev_m",
+  "xcenter": -14615548,
+  "ycenter": 7772618,
+  "zcenter": 1298,
+  "srs": 3857,
+  "units": "metric",
+  "format": "csv",
+  "geom": "points"
+}
+
