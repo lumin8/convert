@@ -133,23 +133,15 @@ func DemVrtPath() (string, error) {
 	return dvp, nil
 }
 
-// initialize the dependencies
-func init() {
-        dem, err := DemVrtPath()
-
-        if err != nil {
-                fmt.Printf("%s",err.Error())
-        }
-
-        fmt.Printf("world digital elevation model (DEM) found at %s",dem)
-}
-
 
 // DatasetFromCSV ...
 func DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
 
-	if _, err := os.Stat(demvrt); err != nil {
-                return nil, fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+	// ensure demvrt is set, can't proceed without
+	if demvrt == "" {
+		if _, err := DemVrtPath(); err != nil {
+			return nil, err
+		}
         }
 
 	var outdataset Datasets
@@ -211,8 +203,11 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 func DatasetFromGEOJSON(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
 	var outdataset *Datasets
 
-	if _, err := os.Stat(demvrt); err != nil {
-                return nil, fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+	// ensure demvrt is set, can't proceed without
+	if demvrt == "" {
+                if _, err := DemVrtPath(); err != nil {
+                        return nil, err
+                }
         }
 
 	raw, err := ioutil.ReadAll(contents)
@@ -404,7 +399,7 @@ func GetElev(x float64, y float64) (float64, error) {
 	// outputs in meters, works regardless of input projection
 	lon, lat := To4326(x, y)
 
-	// get path of dem dir, not vrt itself which is the second variable _
+	// get path of dem dir from demvrt, not filename which is the second variable _
 	demdir, _ := filepath.Split(demvrt)
 
 	if _, err := os.Stat(demdir); err != nil {
@@ -513,7 +508,6 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 			}
 			feature.Points = points.Points[0]
 		}()
-		//feature.Points = (gfeature.Geojson.Geometry.Point)
 		wg.Wait()
 		outdataset.Points = append(outdataset.Points, feature)
 
@@ -536,7 +530,6 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 			}
 			feature.Points = points.Points
 		}()
-		//feature.Points = gfeature.Geojson.Geometry.LineString
 		wg.Wait()
 		outdataset.Lines = append(outdataset.Lines, feature)
 
@@ -559,7 +552,6 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 			}
 			feature.Points = points.Points
 		}()
-		//feature.Points = gfeature.Geojson.Geometry.Polygon[0]
 		wg.Wait()
 		outdataset.Shapes = append(outdataset.Shapes, feature)
 
@@ -617,8 +609,11 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 			return pointarray, err
 		}
 
-		// only proceed if coordinate is valid
-		container.ch <- point
+		// only proceed if channel is valid
+		if container.ch != nil {
+			container.ch <- point
+		}
+
 		pointarray.Points = append(pointarray.Points, point)
 
 		return pointarray, nil
@@ -634,18 +629,22 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 				continue
 			}
 
-			// only proceed if coordinate is valid
-			container.ch <- point
+			// only proceed if channel is valid
+			if container.ch != nil {
+				container.ch <- point
+			}
+
 			pointarray.Points = append(pointarray.Points, point)
 		}
 
 		// lines must have at least two coordinates to be valid
 		if len(pointarray.Points) < 2 {
 			err = errors.New("not enough valid points to create linestring: " + err.Error())
+			return pointarray, err
 		}
 
-		// return pointarray and errors (if any)
-		return pointarray, err
+		// return pointarray
+		return pointarray, nil
 
 	case "Polygon", "Polygonz":
 
@@ -658,8 +657,11 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 					continue
 				}
 
-				// only proceed if coordinate is valid
-				container.ch <- point
+				// only proceed if channel is valid
+				if container.ch != nil {
+					container.ch <- point
+				}
+
 				pointarray.Points = append(pointarray.Points, point)
 			}
 		}
@@ -667,10 +669,11 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 		// polygons must have at least three coordinates to be valid
 		if len(pointarray.Points) < 3 {
 			err = errors.New("not enough valid points to create polygon: " + err.Error())
+			return pointarray, err
 		}
 
 		// return pointarray and errors (if any)
-		return pointarray, err
+		return pointarray, nil
 
 	// catch all in case geometry is not recognized
 	default:

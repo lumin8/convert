@@ -15,8 +15,11 @@ const (
 	pointsnoZ = "tests/bonanza/bonanza_soils.csv"
 	pointsnoZ_input = "tests/bonanza/bonanza_soils.json"
 
-	//pointsgeojson = "tests/bonanza/bonanza_points.geojson"
-	//pointsgeojson_input = "tests/bonanza/bonanza_points.json"
+	points4326 = "tests/bonanza/bonanza_soils_4326.csv"
+        points4326_input = "tests/bonanza/bonanza_soils_4326.json"
+
+	pointsgeojson = "tests/bonanza/bonanza_soils.geojson"
+	pointsgeojson_input = "tests/bonanza/bonanza_lines.json"
 
 	lines = "tests/bonanza/bonanza_lines.geojson"
 	lines_input = "tests/bonanza/bonanza_lines.json"
@@ -40,14 +43,15 @@ func TestCSVData(t *testing.T) {
         data := make(map[string]string)
 	data[pointswithZ] = pointswithZ_input
 	data[pointsnoZ] = pointsnoZ_input
+	data[points4326] = points4326_input
 
 	for item, inputDetails := range data {
 
 		// prase the inputDetails from originating json
 		jsonFile, err := os.Open(inputDetails)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			t.Logf(err.Error())
+			t.Fail()
 		}
 		byteValue, _ := ioutil.ReadAll(jsonFile)
 		var input Input
@@ -57,32 +61,31 @@ func TestCSVData(t *testing.T) {
 		// grab the item as a reader
 		data, err := os.Open(item)
 		if err != nil {
-                        fmt.Println(err)
-                        continue
+                        t.Logf(err.Error())
+                        t.Fail()
                 }
 
 		// send the information to the tester
 		results, err := DatasetFromCSV(input.Xfield, input.Yfield, input.Zfield, data)
 		if err != nil {
-			fmt.Printf("damnit, got an error : %s\n",err.Error())
-			continue
+			t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+			t.Fail()
 		}
 
 		// parse the results
 		final, err := json.Marshal(results)
 		if err != nil {
-                        fmt.Printf("damnit, got an error : %s\n",err.Error())
-                        continue
+                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+                        t.Fail()
                 }
 
 		// guessing that the final string should be more than 100 characters
-		if len(final) < 100 {
-			fmt.Printf("damnit, conversion didn't work: %s\n",err.Error())
-                        continue
+		if len(results.Center) < 1 || len(final) < 100 {
+			t.Logf("damnit, conversion didn't work for %s: %s\n",item,err.Error())
+                        t.Fail()
 		}
 
-		fmt.Printf("conversion for %s was successful\n",item)
-		//fmt.Printf(string(final))
+		fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
 
 	}
 }
@@ -92,6 +95,7 @@ func TestGEOJSONData(t *testing.T) {
 
         // build a map of the testing data and inputs
         data := make(map[string]string)
+	data[pointsgeojson] = pointsgeojson_input
         data[lines] = lines_input
         data[shapes] = shapes_input
 
@@ -100,8 +104,8 @@ func TestGEOJSONData(t *testing.T) {
                 // prase the inputDetails from originating json
                 jsonFile, err := os.Open(inputDetails)
                 if err != nil {
-                        fmt.Println(err)
-                        continue
+                        t.Logf(err.Error())
+                        t.Fail()
                 }
                 byteValue, _ := ioutil.ReadAll(jsonFile)
                 var input Input
@@ -111,30 +115,31 @@ func TestGEOJSONData(t *testing.T) {
 		// grab the item as a reader
                 data, err := os.Open(item)
                 if err != nil {
-                        fmt.Println(err)
-                        continue
+                        t.Logf(err.Error())
+                        t.Fail()
                 }
 
                 // send the information to the tester
                 results, err := DatasetFromGEOJSON(input.Xfield, input.Yfield, input.Zfield, data)
+
                 if err != nil {
-                        fmt.Printf("damnit, got an error : %s\n",err.Error())
+                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+			t.Fail()
                 }
 
 		// parse the results
 		final, err := json.Marshal(results)
                 if err != nil {
-                        fmt.Printf("damnit, got an error : %s\n",err.Error())
-                        continue
+                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+                        t.Fail()
                 }
 
-                // guessing that the final string should be more than 100 characters
-                if len(final) < 100 {
-                        fmt.Printf("damnit, conversion didn't work: %s\n",err.Error())
-                        continue
+                // if no center, the conversion is BUNK
+                if len(results.Center) < 1 || len(final) < 100 {
+                        t.Logf("damnit, conversion didn't work for %s: %s\n",item,err.Error())
+                        t.Fail()
                 }
 
-                fmt.Printf("conversion for %s was successful\n",item)
-		//fmt.Printf(string(final))
+                fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
         }
 }
