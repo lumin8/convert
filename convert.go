@@ -303,6 +303,7 @@ func BBOXListener(container *ExtentContainer) {
 
 		// if channel closes, kill goroutine
 		if !ok {
+			fmt.Printf("killed channel")
 			return
 		}
 
@@ -606,11 +607,12 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 		point, err := CheckCoords(gfeature.Geojson.Geometry.Point)
 
 		if err != nil {
+			fmt.Printf("%s",err.Error())
 			return pointarray, err
 		}
 
-		// only proceed if channel is valid
-		if container.ch != nil {
+		// only test bbox if channel is valid
+		if container != nil {
 			container.ch <- point
 		}
 
@@ -629,8 +631,8 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 				continue
 			}
 
-			// only proceed if channel is valid
-			if container.ch != nil {
+			// only test bbox if channel is valid
+			if container != nil {
 				container.ch <- point
 			}
 
@@ -657,8 +659,8 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 					continue
 				}
 
-				// only proceed if channel is valid
-				if container.ch != nil {
+				// only test bbox if channel is valid
+				if container != nil {
 					container.ch <- point
 				}
 
