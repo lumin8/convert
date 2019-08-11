@@ -303,7 +303,6 @@ func BBOXListener(container *ExtentContainer) {
 
 		// if channel closes, kill goroutine
 		if !ok {
-			fmt.Printf("killed channel")
 			return
 		}
 
