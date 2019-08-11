@@ -186,6 +186,12 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	// close the BBOXlistener goroutine
 	close(container.ch)
 
+	// make sure there's valid features in the dataset
+	if len(outdataset.Points) == 0 && len(outdataset.Lines) == 0 && len(outdataset.Shapes) == 0 {
+		err = errors.New("no valid features in dataset")
+		return nil, err
+	}
+
 	// configure the center point... in 4326
 	c, err := getCenter(container.bbox)
 	if err != nil {
@@ -282,6 +288,7 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	coord, err := CheckCoords(xyz)
 	if err != nil {
 		// skip a bunk coordinate
+		fmt.Printf("CheckCoords error: %v\n",err.Error())
 		return
 	}
 

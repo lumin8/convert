@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	//csv testing datasets
 	pointswithZ = "tests/trek/trek_drilldata.csv"
 	pointswithZ_input = "tests/trek/trek_drilldata.json"
 
@@ -18,8 +19,15 @@ const (
 	points4326 = "tests/bonanza/bonanza_soils_4326.csv"
         points4326_input = "tests/bonanza/bonanza_soils_4326.json"
 
+	fakepoints = "tests/fake/fake_soils.csv"
+	fakepoints_input = "tests/fake/fake_soils.json"
+
+	//geojson testing datasets
 	pointsgeojson = "tests/bonanza/bonanza_soils.geojson"
 	pointsgeojson_input = "tests/bonanza/bonanza_lines.json"
+
+	fakecoords = "tests/fake/fake_coords.geojson"
+        fakecoords_input = "tests/fake/fake_coords.geojson"
 
 	lines = "tests/bonanza/bonanza_lines.geojson"
 	lines_input = "tests/bonanza/bonanza_lines.json"
@@ -44,6 +52,7 @@ func TestCSVData(t *testing.T) {
 	data[pointswithZ] = pointswithZ_input
 	data[pointsnoZ] = pointsnoZ_input
 	data[points4326] = points4326_input
+	data[fakepoints] = fakepoints_input
 
 	for item, inputDetails := range data {
 
@@ -68,24 +77,24 @@ func TestCSVData(t *testing.T) {
 		// send the information to the tester
 		results, err := DatasetFromCSV(input.Xfield, input.Yfield, input.Zfield, data)
 		if err != nil {
-			t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+			t.Logf("csv conversion error for %s, no features in dataset: %s\n",item,err.Error())
 			t.Fail()
 		}
 
 		// parse the results
 		final, err := json.Marshal(results)
 		if err != nil {
-                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
-                        t.Fail()
+                        t.Logf("json marshal error for %s: %s\n",item,err.Error())
+			t.Fail()
                 }
 
 		// guessing that the final string should be more than 100 characters
-		if len(results.Center) < 1 || len(final) < 100 {
-			t.Logf("damnit, conversion didn't work for %s: %s\n",item,err.Error())
-                        t.Fail()
+		if results == nil {
+			t.Logf("no valid features were found for %s:%v\n",item,final)
+			return
 		}
 
-		fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
+		fmt.Printf("conversion for %s was successful, with a center of %v\n",item,results.Center)
 
 	}
 }
@@ -96,6 +105,7 @@ func TestGEOJSONData(t *testing.T) {
         // build a map of the testing data and inputs
         data := make(map[string]string)
 	data[pointsgeojson] = pointsgeojson_input
+	data[fakecoords] = fakecoords_input
         data[lines] = lines_input
         data[shapes] = shapes_input
 
@@ -123,21 +133,22 @@ func TestGEOJSONData(t *testing.T) {
                 results, err := DatasetFromGEOJSON(input.Xfield, input.Yfield, input.Zfield, data)
 
                 if err != nil {
-                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+                        t.Logf("geojson conversion error, no valid features for %s: %s\n",item,err.Error())
 			t.Fail()
                 }
 
 		// parse the results
 		final, err := json.Marshal(results)
                 if err != nil {
-                        t.Logf("damnit, got an error for %s: %s\n",item,err.Error())
+                        t.Logf("json marshal error for %s: %s\n",item,err.Error())
                         t.Fail()
                 }
 
                 // if no center, the conversion is BUNK
-                if len(results.Center) < 1 || len(final) < 100 {
-                        t.Logf("damnit, conversion didn't work for %s: %s\n",item,err.Error())
-                        t.Fail()
+		// guessing that the final string should be more than 100 characters
+                if results == nil {
+                        t.Logf("no valid features were found for %s:%v\n",item,final)
+                        return
                 }
 
                 fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
