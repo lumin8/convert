@@ -59,8 +59,7 @@ func TestCSVData(t *testing.T) {
 		// prase the inputDetails from originating json
 		jsonFile, err := os.Open(inputDetails)
 		if err != nil {
-			t.Logf(err.Error())
-			t.Fail()
+			t.Errorf(err.Error())
 		}
 		byteValue, _ := ioutil.ReadAll(jsonFile)
 		var input Input
@@ -70,22 +69,19 @@ func TestCSVData(t *testing.T) {
 		// grab the item as a reader
 		data, err := os.Open(item)
 		if err != nil {
-                        t.Logf(err.Error())
-                        t.Fail()
+                        t.Errorf(err.Error())
                 }
 
 		// send the information to the tester
 		results, err := DatasetFromCSV(input.Xfield, input.Yfield, input.Zfield, data)
 		if err != nil {
 			t.Logf("csv conversion error for %s, no features in dataset: %s\n",item,err.Error())
-			t.Fail()
 		}
 
 		// parse the results
 		final, err := json.Marshal(results)
 		if err != nil {
-                        t.Logf("json marshal error for %s: %s\n",item,err.Error())
-			t.Fail()
+                        t.Errorf("jsor marshal error for %s: %s\n",item,err.Error())
                 }
 
 		// guessing that the final string should be more than 100 characters
@@ -114,34 +110,29 @@ func TestGEOJSONData(t *testing.T) {
                 // prase the inputDetails from originating json
                 jsonFile, err := os.Open(inputDetails)
                 if err != nil {
-                        t.Logf(err.Error())
-                        t.Fail()
+                        t.Errorf(err.Error())
                 }
                 byteValue, _ := ioutil.ReadAll(jsonFile)
                 var input Input
                 json.Unmarshal(byteValue, &input)
 
                 // grab the item as a reader
-		// grab the item as a reader
                 data, err := os.Open(item)
                 if err != nil {
-                        t.Logf(err.Error())
-                        t.Fail()
+                        t.Errorf(err.Error())
                 }
 
                 // send the information to the tester
                 results, err := DatasetFromGEOJSON(input.Xfield, input.Yfield, input.Zfield, data)
 
                 if err != nil {
-                        t.Logf("geojson conversion error, no valid features for %s: %s\n",item,err.Error())
-			t.Fail()
+                        t.Errorf("geojson conversion error, no valid features for %s: %s\n",item,err.Error())
                 }
 
 		// parse the results
 		final, err := json.Marshal(results)
                 if err != nil {
-                        t.Logf("json marshal error for %s: %s\n",item,err.Error())
-                        t.Fail()
+                        t.Errorf("json marshal error for %s: %s\n",item,err.Error())
                 }
 
                 // if no center, the conversion is BUNK
