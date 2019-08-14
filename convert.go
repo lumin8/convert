@@ -403,6 +403,11 @@ func GetElev(x float64, y float64) (float64, error) {
 	// outputs in meters, works regardless of input projection
 	lon, lat := To4326(x, y)
 
+	// check Elevation available!!!
+	if _, err := DemVrtPath(); err != nil {
+                return math.NaN(), err
+        }
+
 	// get path of dem dir from demvrt, not filename which is the second variable _
 	demdir, _ := filepath.Split(demvrt)
 
