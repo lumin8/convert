@@ -2,7 +2,6 @@ package convert
 
 import (
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -138,11 +137,9 @@ func DemVrtPath() (string, error) {
 func DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
 
 	// ensure demvrt is set, can't proceed without
-	if demvrt == "" {
-		if _, err := DemVrtPath(); err != nil {
-			return nil, err
-		}
-        }
+	if _, err := DemVrtPath(); err != nil {
+		return nil, err
+	}
 
 	var outdataset Datasets
 
@@ -152,7 +149,7 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	}
 
 	if len(raw) == 0 {
-		err = errors.New("no data in dataset")
+		err = fmt.Errorf("no data in dataset")
 		return &outdataset, err
 	}
 
@@ -188,7 +185,7 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 
 	// make sure there's valid features in the dataset
 	if len(outdataset.Points) == 0 && len(outdataset.Lines) == 0 && len(outdataset.Shapes) == 0 {
-		err = errors.New("no valid features in dataset")
+		err = fmt.Errorf("no valid features in dataset")
 		return nil, err
 	}
 
@@ -210,11 +207,9 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	var outdataset *Datasets
 
 	// ensure demvrt is set, can't proceed without
-	if demvrt == "" {
-                if _, err := DemVrtPath(); err != nil {
-                        return nil, err
-                }
-        }
+	if _, err := DemVrtPath(); err != nil {
+		return nil, err
+	}
 
 	raw, err := ioutil.ReadAll(contents)
 	if err != nil {
@@ -222,7 +217,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	}
 
 	if len(raw) == 0 {
-		err = errors.New("no data in dataset")
+		err = fmt.Errorf("no data in dataset")
 		return outdataset, err
 	}
 
@@ -246,8 +241,8 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	// configure the center point... in 4326
 	c, err := getCenter(container.bbox)
 	if err != nil {
-		err = errors.New("No center of dataset, which means the dataset is invalid")
-		return outdataset, err
+		// No center of dataset, which means the dataset is invalid
+		return nil, err
 	}
 	outdataset.Center = append(outdataset.Center, c)
 
@@ -288,7 +283,9 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	coord, err := CheckCoords(xyz)
 	if err != nil {
 		// skip a bunk coordinate
-		fmt.Printf("CheckCoords error: %v\n",err.Error())
+		fmt.Printf("Non fatal: [ParseCSV] error in [CheckCoords]: %v\n",err.Error())
+
+		// TBD modify ParseCSV to return error
 		return
 	}
 
@@ -421,7 +418,7 @@ func GetElev(x float64, y float64) (float64, error) {
 
 	// raise an error if z not found
 	if math.IsNaN(z) == true {
-		err = errors.New("Z value is NaN, not sure why")
+		err = fmt.Errorf("Z value is NaN, not sure why")
 		return z, err
 	}
 
@@ -462,7 +459,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 	var err error
 
 	if len(collection.Features) < 1 {
-		err = errors.New("no features to parse")
+		err = fmt.Errorf("no features to parse")
 		return &outdataset, err
 	}
 
@@ -613,7 +610,6 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 		point, err := CheckCoords(gfeature.Geojson.Geometry.Point)
 
 		if err != nil {
-			fmt.Printf("%s",err.Error())
 			return pointarray, err
 		}
 
@@ -630,10 +626,9 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 		for _, coord := range gfeature.Geojson.Geometry.LineString {
 
-			point, newErr := CheckCoords(coord)
+			point, err := CheckCoords(coord)
 
-			if newErr != nil {
-				err = newErr
+			if err != nil {
 				continue
 			}
 
@@ -647,7 +642,8 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 		// lines must have at least two coordinates to be valid
 		if len(pointarray.Points) < 2 {
-			err = errors.New("not enough valid points to create linestring: " + err.Error())
+			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
+			err = fmt.Errorf("not enough valid points to create linestring: %s",err)
 			return pointarray, err
 		}
 
@@ -658,10 +654,9 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 		for _, coords := range gfeature.Geojson.Geometry.Polygon {
 			for _, coord := range coords {
-				point, newErr := CheckCoords(coord)
+				point, err := CheckCoords(coord)
 
-				if newErr != nil {
-					err = newErr
+				if err != nil {
 					continue
 				}
 
@@ -676,19 +671,19 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 		// polygons must have at least three coordinates to be valid
 		if len(pointarray.Points) < 3 {
-			err = errors.New("not enough valid points to create polygon: " + err.Error())
+			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
+			err = fmt.Errorf("not enough valid points to create polygon: %s",err)
 			return pointarray, err
 		}
 
-		// return pointarray and errors (if any)
+		// return pointarray
 		return pointarray, nil
 
 	// catch all in case geometry is not recognized
 	default:
-		err = errors.New("geometery type is not recognized")
+		err = fmt.Errorf("geometry type is not recognized")
 
-		return pointarray, nil
-
+		return pointarray, err
 	}
 }
 
@@ -700,7 +695,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 	switch len(coord) {
 	case 0, 1:
 		// coordinate is bunk
-		err = errors.New("missing x, y")
+		err = fmt.Errorf("missing x, y")
 		return coord, err
 
 	case 2:
@@ -723,7 +718,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 
 	default:
 		// who the hell knows but play it safe
-		err = errors.New("too many coords")
+		err = fmt.Errorf("too many coords")
 		return coord, err
 	}
 }
