@@ -10,30 +10,30 @@ import (
 
 const (
 	//csv testing datasets
-	pointswithZ = "tests/trek/trek_drilldata.csv"
-	pointswithZ_input = "tests/trek/trek_drilldata.json"
+	pointswithZ = "testdata/trek/trek_drilldata.csv"
+	pointswithZ_input = "testdata/trek/trek_drilldata.json"
 
-	pointsnoZ = "tests/bonanza/bonanza_soils.csv"
-	pointsnoZ_input = "tests/bonanza/bonanza_soils.json"
+	pointsnoZ = "testdata/bonanza/bonanza_soils.csv"
+	pointsnoZ_input = "testdata/bonanza/bonanza_soils.json"
 
-	points4326 = "tests/bonanza/bonanza_soils_4326.csv"
-        points4326_input = "tests/bonanza/bonanza_soils_4326.json"
+	points4326 = "testdata/bonanza/bonanza_soils_4326.csv"
+        points4326_input = "testdata/bonanza/bonanza_soils_4326.json"
 
-	fakepoints = "tests/fake/fake_soils.csv"
-	fakepoints_input = "tests/fake/fake_soils.json"
+	fakepoints = "testdata/fake/fake_soils.csv"
+	fakepoints_input = "testdata/fake/fake_soils.json"
 
 	//geojson testing datasets
-	pointsgeojson = "tests/bonanza/bonanza_soils.geojson"
-	pointsgeojson_input = "tests/bonanza/bonanza_lines.json"
+	pointsgeojson = "testdata/bonanza/bonanza_soils.geojson"
+	pointsgeojson_input = "testdata/bonanza/bonanza_lines.json"
 
-	fakecoords = "tests/fake/fake_coords.geojson"
-        fakecoords_input = "tests/fake/fake_coords.geojson"
+	fakecoords = "testdata/fake/fake_coords.geojson"
+        fakecoords_input = "testdata/fake/fake_coords.geojson"
 
-	lines = "tests/bonanza/bonanza_lines.geojson"
-	lines_input = "tests/bonanza/bonanza_lines.json"
+	lines = "testdata/bonanza/bonanza_lines.geojson"
+	lines_input = "testdata/bonanza/bonanza_lines.json"
 
-	shapes = "tests/bonanza/bonanza_formations.geojson"
-	shapes_input = "tests/bonanza/bonanza_formations.json"
+	shapes = "testdata/bonanza/bonanza_formations.geojson"
+	shapes_input = "testdata/bonanza/bonanza_formations.json"
 )
 
 

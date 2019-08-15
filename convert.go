@@ -643,8 +643,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 		// lines must have at least two coordinates to be valid
 		if len(pointarray.Points) < 2 {
 			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
-			err = fmt.Errorf("not enough valid points to create linestring: %s",err)
-			return pointarray, err
+			return pointarray, fmt.Errorf("not enough valid points to create linestring: %s",err)
 		}
 
 		// return pointarray
@@ -680,7 +679,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 	// catch all in case geometry is not recognized
 	default:
-		return pointarray, fmt.Errorf("geometry type is not recognized")
+		return pointarray, errors.New("geometry type is not recognized")
 	}
 }
 
