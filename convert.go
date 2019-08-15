@@ -2,6 +2,7 @@ package convert
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -149,8 +150,7 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	}
 
 	if len(raw) == 0 {
-		err = fmt.Errorf("no data in dataset")
-		return &outdataset, err
+		return &outdataset, errors.New("no data in dataset")
 	}
 
 	//store the csv headers by index
@@ -185,8 +185,7 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 
 	// make sure there's valid features in the dataset
 	if len(outdataset.Points) == 0 && len(outdataset.Lines) == 0 && len(outdataset.Shapes) == 0 {
-		err = fmt.Errorf("no valid features in dataset")
-		return nil, err
+		return nil, errors.New("no valid features in dataset")
 	}
 
 	// configure the center point... in 4326
@@ -217,8 +216,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	}
 
 	if len(raw) == 0 {
-		err = fmt.Errorf("no data in dataset")
-		return outdataset, err
+		return nil, errors.New("no data in dataset")
 	}
 
 	//carries references to this dataset's ch, wg, and bbox
@@ -423,8 +421,7 @@ func GetElev(x float64, y float64) (float64, error) {
 
 	// raise an error if z not found
 	if math.IsNaN(z) == true {
-		err = fmt.Errorf("Z value is NaN, not sure why")
-		return z, err
+		return z, errors.New("Z value is NaN, not sure why")
 	}
 
 	return z, nil
@@ -461,11 +458,9 @@ func To3857(x float64, y float64) (float64, float64) {
 //ParseGEOJSONCollection peels into the collection multiple features
 func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error) {
 	var outdataset Datasets
-	var err error
 
 	if len(collection.Features) < 1 {
-		err = fmt.Errorf("no features to parse")
-		return &outdataset, err
+		return nil, errors.New("no features to parse")
 	}
 
 	//access each of the individual features of the geojson
@@ -677,8 +672,7 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 		// polygons must have at least three coordinates to be valid
 		if len(pointarray.Points) < 3 {
 			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
-			err = fmt.Errorf("not enough valid points to create polygon: %s",err)
-			return pointarray, err
+			return pointarray, fmt.Errorf("not enough valid points to create polygon: %s",err)
 		}
 
 		// return pointarray
@@ -686,22 +680,18 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 
 	// catch all in case geometry is not recognized
 	default:
-		err = fmt.Errorf("geometry type is not recognized")
-
-		return pointarray, err
+		return pointarray, fmt.Errorf("geometry type is not recognized")
 	}
 }
 
 // CheckCoords ... enforces 3857 for X and Y, and fills Z if absent
 func CheckCoords(coord []float64) ([]float64, error) {
-	var err error
 
 	// coords are []{x, y, z}
 	switch len(coord) {
 	case 0, 1:
 		// coordinate is bunk
-		err = fmt.Errorf("missing x, y")
-		return coord, err
+		return coord, errors.New("missing x, y")
 
 	case 2:
 		// enforce 3857
@@ -723,8 +713,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 
 	default:
 		// who the hell knows but play it safe
-		err = fmt.Errorf("too many coords")
-		return coord, err
+		return coord, errors.New("too many coords")
 	}
 }
 
