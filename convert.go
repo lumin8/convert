@@ -125,7 +125,7 @@ func DemVrtPath() (string, error) {
 	}
 
 	if _, err := os.Stat(dvp); err != nil {
-		return "", fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", demvrt)
+		return "", fmt.Errorf("error: world digital elevation model (DEM) cannot be found at %s", dvp)
 	}
 
 	demvrt = dvp
