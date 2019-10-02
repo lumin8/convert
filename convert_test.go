@@ -143,5 +143,7 @@ func TestGEOJSONData(t *testing.T) {
                 }
 
                 fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
+		//fmt.Printf("%v",string(final))
+
         }
 }
