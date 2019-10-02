@@ -611,7 +611,7 @@ func BBOXListener(container *ExtentContainer) {
                 if X < container.bbox["lx"] {
                         container.bbox["lx"] = X
                 } else if X > container.bbox["rx"] {
-                        container.bbox["ux"] = X
+                        container.bbox["rx"] = X
                 }
 
                 // if the inbound Y is outside of current extent, grow extent
