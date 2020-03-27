@@ -6,95 +6,109 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
+        "math"
 	"strconv"
 	"sync"
 
-	"github.com/golang/geo/s2"
 	srtm "github.com/lumin8/elev-utils"
-	geo "github.com/paulmach/go.geo"
+        geo "github.com/paulmach/go.geo"
 	geojson "github.com/paulmach/go.geojson"
 	"github.com/remeh/sizedwaitgroup"
+        "github.com/golang/geo/s2"
 )
 
 // Datasets ...
 type Datasets struct {
-	ID      string   `json:"id" yaml:"id"`
-	Name    string   `json:"name" yaml:"name"`
-	Url     string   `json:"dataurl" yaml:"dataurl"`
-	Updated string   `json:"lastUpdated" yaml:"lastUpdated"`
-	Center  []Point  `json:"center" yaml:"center"`
-	S2      []string `json:"s2" yaml:"s2"`
-	Points  []Points `json:"points" yaml:"points"`
-	Lines   []Lines  `json:"lines" yaml:"lines"`
-	Shapes  []Shapes `json:"shapes" yaml:"shapes"`
+        ID      string   `json:"id" yaml:"id"`
+        Name    string   `json:"name" yaml:"name"`
+        Url     string   `json:"dataurl" yaml:"dataurl"`
+        Updated string   `json:"lastUpdated" yaml:"lastUpdated"`
+        Center  []Point  `json:"center" yaml:"center"`
+        S2      []string `json:"s2" yaml:"s2"`
+        Points  []Points `json:"points" yaml:"points"`
+        Lines   []Lines  `json:"lines" yaml:"lines"`
+        Shapes  []Shapes `json:"shapes" yaml:"shapes"`
 }
 
 // Individual Point Coordinate ...
 type Point struct {
-	X float64 `json:"x" yaml:"x"`
-	Y float64 `json:"y" yaml:"y"`
-	Z float64 `json:"z" yaml:"z"`
+        X float64 `json:"x" yaml:"x"`
+        Y float64 `json:"y" yaml:"y"`
+        Z float64 `json:"z" yaml:"z"`
 }
 
 // Points ...
 type Points struct {
-	ID         string      `json:"id" yaml:"id"`
-	Name       string      `json:"name" yaml:"name"`
-	StyleType  string      `json:"type" yaml:"type"`
-	Attributes []Attribute `json:"attributes" yaml:"attributes"`
-	Points     []float64   `json:"point" yaml:"point"`
+        ID         string      `json:"id" yaml:"id"`
+        Name       string      `json:"name" yaml:"name"`
+        StyleType  string      `json:"type" yaml:"type"`
+        Attributes []Attribute `json:"attributes" yaml:"attributes"`
+        Points     []float64   `json:"point" yaml:"point"`
 }
 
 // PointArrays ...
 type PointArray struct {
-	Points [][]float64 `json:"points" yaml:"points"`
+        Points [][]float64 `json:"points" yaml:"points"`
 }
 
 // Line ...
 type Lines struct {
-	ID         string      `json:"id" yaml:"id"`
-	Name       string      `json:"name" yaml:"name"`
-	StyleType  string      `json:"type" yaml:"type"`
-	Attributes []Attribute `json:"attributes" yaml:"attributes"`
-	Points     [][]float64 `json:"points" yaml:"points"`
+        ID         string      `json:"id" yaml:"id"`
+        Name       string      `json:"name" yaml:"name"`
+        StyleType  string      `json:"type" yaml:"type"`
+        Attributes []Attribute `json:"attributes" yaml:"attributes"`
+        Points     [][]float64 `json:"points" yaml:"points"`
 }
 
 // Shape ...
 type Shapes struct {
-	ID         string      `json:"id" yaml:"id"`
-	Name       string      `json:"name" yaml:"name"`
-	StyleType  string      `json:"type" yaml:"type"`
-	Attributes []Attribute `json:"attributes" yaml:"attributes"`
-	Points     [][]float64 `json:"points" yaml:"points"`
+        ID         string      `json:"id" yaml:"id"`
+        Name       string      `json:"name" yaml:"name"`
+        StyleType  string      `json:"type" yaml:"type"`
+        Attributes []Attribute `json:"attributes" yaml:"attributes"`
+        Points     [][][]float64 `json:"points" yaml:"points"`
+}
+
+// Generic Feature ...
+type Generic struct {
+        ID         string      `json:"id" yaml:"id"`
+        Name       string      `json:"name" yaml:"name"`
+        StyleType  string      `json:"type" yaml:"type"`
+        Attributes []Attribute `json:"attributes" yaml:"attributes"`
+        Point           []float64
+        MultiPoint      [][]float64
+        LineString      [][]float64
+        MultiLineString [][][]float64
+        Polygon         [][][]float64
+        MultiPolygon    [][][][]float64
 }
 
 // Attribute ...
 type Attribute struct {
-	Key   string `json:"key" yaml:"key"`
-	Value string `json:"value" yaml:"value"`
+        Key   string `json:"key" yaml:"key"`
+        Value string `json:"value" yaml:"value"`
 }
 
 // FeatureInfo ...
 type FeatureInfo struct {
-	ID        string
-	Geojson   geojson.Feature
-	GeomType  string
-	SRID      string
-	S2        []s2.CellID
-	Tokens    []string
-	Name      string
-	StyleType string
+        ID        string
+        Geojson   geojson.Feature
+        GeomType  string
+        SRID      string
+        S2        []s2.CellID
+        Tokens    []string
+        Name      string
+        StyleType string
 }
 
 // BBOX ExtentContainer
 type ExtentContainer struct {
-	bbox map[string]float64
-	ch   chan []float64
-	wg   sizedwaitgroup.SizedWaitGroup
+        bbox map[string]float64
+        ch   chan []float64
+        wg   sizedwaitgroup.SizedWaitGroup
 }
 
 const (
@@ -297,167 +311,10 @@ func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, con
 	outdataset.Points = append(outdataset.Points, point)
 }
 
-// BBOXListener ...  observes every X & Y on the channel, retains lowest and highest for bbox extent
-func BBOXListener(container *ExtentContainer) {
-
-	for {
-		xyz, ok := <-container.ch
-
-		// if channel closes, kill goroutine
-		if !ok {
-			return
-		}
-
-		X := xyz[0]
-		Y := xyz[1]
-
-		_, present := container.bbox["lx"]
-		if !present {
-			container.bbox["lx"] = X
-			container.bbox["rx"] = X
-			container.bbox["ly"] = Y
-			container.bbox["uy"] = Y
-		}
-
-		// if the inbound X is outside of current extent, grow extent
-		if X < container.bbox["lx"] {
-			container.bbox["lx"] = X
-		} else if X > container.bbox["rx"] {
-			container.bbox["ux"] = X
-		}
-
-		// if the inbound Y is outside of current extent, grow extent
-		if Y < container.bbox["ly"] {
-			container.bbox["ly"] = Y
-		} else if Y > container.bbox["uy"] {
-			container.bbox["uy"] = Y
-		}
-	}
-}
-
-// getCenter calculates the center of a bbox extent
-func getCenter(bbox map[string]float64) (Point, error) {
-	var err error
-	var c Point
-	c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
-	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
-
-	//get the center of the bbox
-	c.Z, err = GetElev(c.X, c.Y)
-	if err != nil {
-                // ok to return empty center
-                return c, err
-        }
-
-	return c, nil
-}
-
-// s2covering finds the s2 hash key that represents the geographic coverage of the bbox extent
-func s2covering(bbox map[string]float64) []string {
-	var s2hash []string
-
-	// don't panic if bbox is empty... it means we had a bunk dataset
-	if len(bbox) < 4 {
-		// ok to return empty s2hash
-		return s2hash
-	}
-
-	rx, uy := To4326(bbox["rx"], bbox["uy"])
-	lx, ly := To4326(bbox["lx"], bbox["ly"])
-
-	// gets final elevation for center calculated point
-	cz, err := GetElev(bbox["rx"], bbox["uy"])
-	if err != nil {
-		// ok to return empty s2hash
-		return s2hash
-	}
-
-	pts := []s2.Point{
-		s2.PointFromCoords(rx, uy, cz),
-		s2.PointFromCoords(lx, uy, cz),
-		s2.PointFromCoords(lx, ly, cz),
-		s2.PointFromCoords(rx, ly, cz),
-	}
-
-	loop := s2.LoopFromPoints(pts)
-	covering := loop.CellUnionBound()
-
-	for _, cellid := range covering {
-		token := cellid.ToToken()
-		if len(token) > 8 {
-			runes := []rune(token)
-			token = string(runes[0:8])
-		}
-
-		// write s2 token array to the dataset s2 key list
-		s2hash = append(s2hash, token)
-	}
-
-	return s2hash
-}
-
-// GetElev gets the elevation for the given x y coordinate
-func GetElev(x float64, y float64) (float64, error) {
-	// outputs in meters, works regardless of input projection
-	lon, lat := To4326(x, y)
-
-	// check Elevation available!!!
-	if _, err := DemVrtPath(); err != nil {
-                return math.NaN(), err
-        }
-
-	// get path of dem dir from demvrt, not filename which is the second variable _
-	demdir, _ := filepath.Split(demvrt)
-
-	if _, err := os.Stat(demdir); err != nil {
-		return math.NaN(), err
-	}
-
-	// call the elevation service
-	z, err := srtm.ElevationFromLatLon(demdir, lat, lon)
-	if err != nil {
-		return 0.0, err
-	}
-
-	// raise an error if z not found
-	if math.IsNaN(z) == true {
-		return z, errors.New("Z value is NaN, not sure why")
-	}
-
-	return z, nil
-}
-
-// To4326 converts coordinates to EPSG:4326 projection
-func To4326(x float64, y float64) (float64, float64) {
-	if x > 180 || x < -180 || y > 180 || y < -180 {
-		mercPoint := geo.NewPoint(x, y)
-		geo.Mercator.Inverse(mercPoint)
-		x = mercPoint[0]
-		y = mercPoint[1]
-	}
-
-	return x, y
-}
-
-// To3857 converts coordinates to EPSG:3857 projection
-func To3857(x float64, y float64) (float64, float64) {
-	if x >= -180 && x <= 180 && y >= -180 && y <= 180 {
-		mercPoint := geo.NewPoint(x, y)
-		geo.Mercator.Project(mercPoint)
-		x = mercPoint[0]
-		y = mercPoint[1]
-
-		// trim decimals to the cm
-		x = math.Round(mercPoint[0]*100) / 100
-		y = math.Round(mercPoint[1]*100) / 100
-	}
-
-	return x, y
-}
-
-//ParseGEOJSONCollection peels into the collection multiple features
+//ParseGEOJSONCollection peels into the collection's multiple features
 func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error) {
 	var outdataset Datasets
+	var err error
 
 	if len(collection.Features) < 1 {
 		return nil, errors.New("no features to parse")
@@ -477,8 +334,12 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 			defer container.wg.Done()
 
 			// process each feature independently
-			ParseGEOJSONFeature(&gfeature, &outdataset, container)
+			err = ParseGEOJSONFeature(&gfeature, &outdataset, container)
 		}()
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	container.wg.Wait()
@@ -486,83 +347,94 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 	return &outdataset, nil
 }
 
-//ParseGEOJSONFeature processes each geojson feature into a Unity json feature
-func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) {
+//ParseGEOJSONFeature processes geojson feature(s) into a Unity collection (*Dataset)
+func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container *ExtentContainer) error {
+
+	var wg sync.WaitGroup
+	var err error
+
+	// build a generic 3D feature from the geojson feature
+	var feature Generic
+	wg.Add(2)
+
+	// spawn a gopher to go handle the attributes
+	go func() {
+		defer wg.Done()
+		feature.Attributes = ParseGEOJSONAttributes(gfeature)
+	}()
+
+	// spawn gophers to handle the geometries
+	var parsedgeom interface{}
+
 	switch gfeature.Geojson.Geometry.Type {
 
-	// it appears the following is replicate, but with type asserstion and
-	// minute differences, the least complicated path is to replicate some
-	// elements.
-	case "Point", "Pointz":
-		var wg sync.WaitGroup
-		var feature Points
-		wg.Add(2)
+	case "Point", "PointZ":
 		go func() {
 			defer wg.Done()
-			feature.Attributes = ParseGEOJSONAttributes(gfeature)
-			feature.Name = gfeature.Name
-			feature.StyleType = gfeature.StyleType
-			feature.ID = gfeature.ID
-		}()
-		go func() {
-			defer wg.Done()
-			points, err := ParseGEOJSONGeom(gfeature, container)
-			if err != nil || len(points.Points) < 1 {
-				return
-			}
-			feature.Points = points.Points[0]
+			parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Point)
 		}()
 		wg.Wait()
-		outdataset.Points = append(outdataset.Points, feature)
+
+		if err != nil {
+			return err
+		}
+
+		// combine the attributes and the geom into a new feature
+                newfeature := Points { Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType }
+		newfeature.Points = parsedgeom.([]float64)
+
+		//append the new feature to the outgoing dataset
+                outdataset.Points = append(outdataset.Points, newfeature)
 
 	case "LineString", "LineStringZ":
-		var wg sync.WaitGroup
-		var feature Lines
-		wg.Add(2)
 		go func() {
-			defer wg.Done()
-			feature.Attributes = ParseGEOJSONAttributes(gfeature)
-			feature.Name = gfeature.Name
-			feature.StyleType = gfeature.StyleType
-			feature.ID = gfeature.ID
-		}()
-		go func() {
-			defer wg.Done()
-			points, err := ParseGEOJSONGeom(gfeature, container)
-			if err != nil || len(points.Points) < 1 {
-				return
-			}
-			feature.Points = points.Points
-		}()
-		wg.Wait()
-		outdataset.Lines = append(outdataset.Lines, feature)
+                        defer wg.Done()
+                        parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.LineString)
+                }()
+                wg.Wait()
+
+		if err != nil {
+			return err
+		}
+
+		// combine the attributes and the geom into a new feature
+		newfeature := Lines { Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType }
+		newfeature.Points = parsedgeom.([][]float64)
+
+		//append the new feature to the outgoing dataset
+		outdataset.Lines = append(outdataset.Lines, newfeature)
 
 	case "Polygon", "PolygonZ":
-		var wg sync.WaitGroup
-		var feature Shapes
-		wg.Add(2)
 		go func() {
-			defer wg.Done()
-			feature.Attributes = ParseGEOJSONAttributes(gfeature)
-			feature.Name = gfeature.Name
-			feature.StyleType = gfeature.StyleType
-			feature.ID = gfeature.ID
-		}()
-		go func() {
-			defer wg.Done()
-			points, err := ParseGEOJSONGeom(gfeature, container)
-			if err != nil || len(points.Points) < 1 {
-				return
-			}
-			feature.Points = points.Points
-		}()
-		wg.Wait()
-		outdataset.Shapes = append(outdataset.Shapes, feature)
+                        defer wg.Done()
+                        parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Polygon)
+                }()
+                wg.Wait()
+
+		if err != nil {
+			return err
+		}
+
+                // combine the attributes and the geom into a new feature
+		newfeature := Shapes { Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType }
+		newfeature.Points = parsedgeom.([][][]float64)
+
+		//append the new feature to the outgoing dataset
+                outdataset.Shapes = append(outdataset.Shapes, newfeature)
+
+	default:
+		err = fmt.Errorf("unsupported geometry of type %v",gfeature.Geojson.Geometry.Type)
 
 	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// ParseGEOJSONAttributes cleans & prepares all attributes
+// ParseGEOJSONAttributes cleans & prepares the attributes
 func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 	var atts []Attribute
 	for k, v := range gfeature.Geojson.Properties {
@@ -596,21 +468,21 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 	return atts
 }
 
-//ParseGEOJSONGeom cleans & prepares the geometry, filling in Z values if absent
-func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointArray, error) {
-	var pointarray PointArray
-	var err error
+//ParseGEOJSONGeom uses generic recursion to process the geometry arrays
+// point	[]float64
+// linestring	[][]float64 *the most common shared pattern
+// polygon	[][][]float64 --^ for loops back up to
+// multipolygon	[][][][]float64 --^ for loops back up to
+func ParseGEOJSONGeom (container *ExtentContainer, feature interface{}) (interface{},error) {
 
-	// subsequently complex geometry types require traversing nested geometries
-	switch gfeature.Geojson.Geometry.Type {
+	switch v := feature.(type) {
 
-	// do not let coordinates be written if they have no z value
-	case "Point", "Pointz":
-
-		point, err := CheckCoords(gfeature.Geojson.Geometry.Point)
+	// one time use case- a point coordinate
+	case []float64:
+		point, err := CheckCoords(v)
 
 		if err != nil {
-			return pointarray, err
+			return nil, err
 		}
 
 		// only test bbox if channel is valid
@@ -618,18 +490,20 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 			container.ch <- point
 		}
 
-		pointarray.Points = append(pointarray.Points, point)
+		return point, nil
 
-		return pointarray, nil
 
-	case "LineString", "LineStringz":
+	// this is the most common shared pattern, all geometry but point
+	case [][]float64:
 
-		for _, coord := range gfeature.Geojson.Geometry.LineString {
+		var parsedfeature [][]float64
 
-			point, err := CheckCoords(coord)
+		for _, j := range v {
+
+			point, err := CheckCoords(j)
 
 			if err != nil {
-				continue
+				return nil, err
 			}
 
 			// only test bbox if channel is valid
@@ -637,101 +511,273 @@ func ParseGEOJSONGeom(gfeature *FeatureInfo, container *ExtentContainer) (PointA
 				container.ch <- point
 			}
 
-			pointarray.Points = append(pointarray.Points, point)
+			parsedfeature = append(parsedfeature, point)
 		}
 
-		// lines must have at least two coordinates to be valid
-		if len(pointarray.Points) < 2 {
-			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
-			return pointarray, fmt.Errorf("not enough valid points to create linestring: %s",err)
-		}
+		return parsedfeature, nil
 
-		// return pointarray
-		return pointarray, nil
+	// [][][] ... keep digging
+	case [][][]float64:
+		var parsedfeature [][][]float64
 
-	case "Polygon", "Polygonz":
+		elementarray := feature.([][][]float64)
 
-		for _, coords := range gfeature.Geojson.Geometry.Polygon {
-			for _, coord := range coords {
-				point, err := CheckCoords(coord)
+		for _, element := range elementarray {
 
-				if err != nil {
-					continue
-				}
+			nextlevel, err := ParseGEOJSONGeom(container, element)
 
-				// only test bbox if channel is valid
-				if container != nil {
-					container.ch <- point
-				}
-
-				pointarray.Points = append(pointarray.Points, point)
+			if err != nil {
+				return nil, err
 			}
+
+			parsedfeature = append(parsedfeature, nextlevel.([][]float64))
 		}
 
-		// polygons must have at least three coordinates to be valid
-		if len(pointarray.Points) < 3 {
-			// maintain an agglomerate of errors, in case there is deeper issue with points, and return them all
-			return pointarray, fmt.Errorf("not enough valid points to create polygon: %s",err)
-		}
+		return parsedfeature, nil
 
-		// return pointarray
-		return pointarray, nil
+	// [][][][] ... keep digging
+	case [][][][]float64:
+                var parsedfeature [][][][]float64
 
-	// catch all in case geometry is not recognized
-	default:
-		return pointarray, errors.New("geometry type is not recognized")
-	}
+                elementarray := feature.([][][][]float64)
+
+                for _, element := range elementarray {
+
+                        nextlevel, err := ParseGEOJSONGeom(container, element)
+
+                        if err != nil {
+                                return nil, err
+                        }
+
+                        parsedfeature = append(parsedfeature, nextlevel.([][][]float64))
+                }
+
+                return parsedfeature, nil
+        }
+
+	return nil, fmt.Errorf("unrecognized geometry")
 }
+
+
+// The fxtns below calculate several attributes from the points of a given feature
+// The container creates a unique channel for each feature, deriving:
+// the center, the total extent of the dataset (lower x,y; upper x,y), and,
+// and the s2 key(s) associated with the feature
+
+
+// initExtentContainer sets up all the elements of the empty struct for each feature
+func initExtentContainer() *ExtentContainer {
+        var container ExtentContainer
+
+        // the bbox extent that will observe and grow with coordinates
+        container.bbox = make(map[string]float64)
+
+        // the channel that carries the coordinates synchronously
+        container.ch = make(chan []float64)
+
+        // a wait group if sub go routines need to add to total
+        wg := sizedwaitgroup.New(maxRoutines)
+        container.wg = wg
+
+        // the bbox extent listener on the channel doing work with the coords
+        go BBOXListener(&container)
+
+        return &container
+}
+
+// BBOXListener ...  observes every X & Y on the channel, retains lowest and highest for bbox extent
+func BBOXListener(container *ExtentContainer) {
+
+        for {
+                xyz, ok := <-container.ch
+
+                // if channel closes, kill goroutine
+                if !ok {
+                        return
+                }
+
+                X := xyz[0]
+                Y := xyz[1]
+
+                _, present := container.bbox["lx"]
+                if !present {
+                        container.bbox["lx"] = X
+                        container.bbox["rx"] = X
+                        container.bbox["ly"] = Y
+                        container.bbox["uy"] = Y
+                }
+
+                // if the inbound X is outside of current extent, grow extent
+                if X < container.bbox["lx"] {
+                        container.bbox["lx"] = X
+                } else if X > container.bbox["rx"] {
+                        container.bbox["rx"] = X
+                }
+
+                // if the inbound Y is outside of current extent, grow extent
+                if Y < container.bbox["ly"] {
+                        container.bbox["ly"] = Y
+                } else if Y > container.bbox["uy"] {
+                        container.bbox["uy"] = Y
+                }
+        }
+}
+
+// getCenter calculates the center from the bbox extent
+func getCenter(bbox map[string]float64) (Point, error) {
+        var err error
+        var c Point
+        c.X = bbox["rx"] - (bbox["rx"]-bbox["lx"])/2
+        c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
+
+        //get the center of the bbox
+        c.Z, err = GetElev(c.X, c.Y)
+        if err != nil {
+                // ok to return empty center
+                return c, err
+        }
+
+        return c, nil
+}
+
+// s2covering finds the s2 hash key that represents the geographic coverage of the bbox extent
+func s2covering(bbox map[string]float64) []string {
+        var s2hash []string
+
+        // don't panic if bbox is empty... it means we had a bunk dataset
+        if len(bbox) < 4 {
+                // ok to return empty s2hash
+                return s2hash
+        }
+
+        rx, uy := To4326(bbox["rx"], bbox["uy"])
+        lx, ly := To4326(bbox["lx"], bbox["ly"])
+
+        // gets final elevation for center calculated point
+        cz, err := GetElev(bbox["rx"], bbox["uy"])
+        if err != nil {
+                // ok to return empty s2hash
+                return s2hash
+        }
+
+        pts := []s2.Point{
+                s2.PointFromCoords(rx, uy, cz),
+                s2.PointFromCoords(lx, uy, cz),
+                s2.PointFromCoords(lx, ly, cz),
+                s2.PointFromCoords(rx, ly, cz),
+        }
+
+        loop := s2.LoopFromPoints(pts)
+        covering := loop.CellUnionBound()
+
+        for _, cellid := range covering {
+                token := cellid.ToToken()
+                if len(token) > 8 {
+                        runes := []rune(token)
+                        token = string(runes[0:8])
+                }
+
+                // write s2 token array to the dataset s2 key list
+                s2hash = append(s2hash, token)
+        }
+
+        return s2hash
+}
+
+
+// The fxtns here are helper utilities for the convert package
+// These fxtns 1) validate a coordinate,
+// 2) get elevation for a given point,
+// 3) and convert a point  EPSG:4326<-->EPSG:3857,
 
 // CheckCoords ... enforces 3857 for X and Y, and fills Z if absent
 func CheckCoords(coord []float64) ([]float64, error) {
 
-	// coords are []{x, y, z}
-	switch len(coord) {
-	case 0, 1:
-		// coordinate is bunk
-		return coord, errors.New("missing x, y")
+        // coords are []{x, y, z}
+        switch len(coord) {
+        case 0, 1:
+                // coordinate is bunk
+                return coord, errors.New("missing x, y")
 
-	case 2:
-		// enforce 3857
-		x, y := To3857(coord[0], coord[1])
+        case 2:
+                // enforce 3857
+                x, y := To3857(coord[0], coord[1])
 
-		// z is needed
-		z, err := GetElev(coord[0], coord[1])
-		if err != nil {
-			return coord, err
-		}
-		return []float64{x, y, z}, nil
+                // z is needed
+                z, err := GetElev(coord[0], coord[1])
+                if err != nil {
+                        return coord, err
+                }
+                return []float64{x, y, z}, nil
 
-	case 3:
-		// enforce 3857
-		x, y := To3857(coord[0], coord[1])
+        case 3:
+                // enforce 3857
+                x, y := To3857(coord[0], coord[1])
 
-		// z is already present, use it
-		return []float64{x, y, coord[2]}, nil
+                // z is already present, use it
+                return []float64{x, y, coord[2]}, nil
 
-	default:
-		// who the hell knows but play it safe
-		return coord, errors.New("too many coords")
-	}
+        default:
+                // who the hell knows but play it safe
+                return coord, errors.New("too many coords")
+        }
 }
 
-// initExtentContainer sets up all the elements of the empty struct
-func initExtentContainer() *ExtentContainer {
-	var container ExtentContainer
+// GetElev gets the elevation for the given x y coordinate
+func GetElev(x float64, y float64) (float64, error) {
+        // outputs in meters, works regardless of input projection
+        lon, lat := To4326(x, y)
 
-	// the bbox extent that will observe and grow with coordinates
-	container.bbox = make(map[string]float64)
+        // check Elevation available!!!
+        if _, err := DemVrtPath(); err != nil {
+                return math.NaN(), err
+        }
 
-	// the channel that carries the coordinates synchronously
-	container.ch = make(chan []float64)
+        // get path of dem dir from demvrt, not filename which is the second variable _
+        demdir, _ := filepath.Split(demvrt)
 
-	// a wait group if sub go routines need to add to total
-	wg := sizedwaitgroup.New(maxRoutines)
-	container.wg = wg
+        if _, err := os.Stat(demdir); err != nil {
+                return math.NaN(), err
+        }
 
-	// the bbox extent listener on the channel doing work with the coords
-	go BBOXListener(&container)
+        // call the elevation service
+        z, err := srtm.ElevationFromLatLon(demdir, lat, lon)
+        if err != nil {
+                return 0.0, err
+        }
 
-	return &container
+        // raise an error if z not found
+        if math.IsNaN(z) == true {
+                return z, errors.New("Z value is NaN, not sure why")
+        }
+
+        return z, nil
+}
+
+// To4326 converts coordinates to EPSG:4326 projection
+func To4326(x float64, y float64) (float64, float64) {
+        if x > 180 || x < -180 || y > 180 || y < -180 {
+                mercPoint := geo.NewPoint(x, y)
+                geo.Mercator.Inverse(mercPoint)
+                x = mercPoint[0]
+                y = mercPoint[1]
+        }
+
+        return x, y
+}
+
+// To3857 converts coordinates to EPSG:3857 projection
+func To3857(x float64, y float64) (float64, float64) {
+        if x >= -180 && x <= 180 && y >= -180 && y <= 180 {
+                mercPoint := geo.NewPoint(x, y)
+                geo.Mercator.Project(mercPoint)
+                x = mercPoint[0]
+                y = mercPoint[1]
+
+                // trim decimals to the cm
+                x = math.Round(mercPoint[0]*100) / 100
+                y = math.Round(mercPoint[1]*100) / 100
+        }
+
+        return x, y
 }
