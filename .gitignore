@@ -10,3 +10,4 @@ version*
 apilog*
 leveldb/
 data/
+*outfile*

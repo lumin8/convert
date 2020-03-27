@@ -14,8 +14,10 @@ import (
 	"sync"
 
 	srtm "github.com/lumin8/elev-utils"
+	"github.com/fogleman/delaunay"
         geo "github.com/paulmach/go.geo"
 	geojson "github.com/paulmach/go.geojson"
+	//"github.com/paulmach/orb"
 	"github.com/remeh/sizedwaitgroup"
         "github.com/golang/geo/s2"
 )
@@ -122,6 +124,7 @@ const (
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
 // Note: if the file is moved or deleted the path will not change
 var demvrt = ""
+var demdir = ""
 
 // DemVrtPath is used to resolve the path for the dem.vrt file
 func DemVrtPath() (string, error) {
@@ -143,6 +146,13 @@ func DemVrtPath() (string, error) {
 	}
 
 	demvrt = dvp
+
+	// get path of dem dir from demvrt, not filename which is the second variable _
+        demdir, _ = filepath.Split(demvrt)
+
+        if _, err := os.Stat(demdir); err != nil {
+                return "", err
+        }
 
 	return dvp, nil
 }
@@ -409,15 +419,28 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
                         defer wg.Done()
                         parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Polygon)
                 }()
-                wg.Wait()
-
 		if err != nil {
 			return err
 		}
+		wg.Wait()
 
-                // combine the attributes and the geom into a new feature
+	        // get a 3D point cloud of the polygon
+		polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.Polygon)
+		if err != nil {
+			return fmt.Errorf("[PolygonToMesh] in pkg [convert] encountered: %v",err)
+		}
+
+		// convert polycloud into a mesh
+		mesh, err := PointcloudToMesh(demdir, polycloud)
+		if err != nil {
+			return fmt.Errorf("[PolygonToMesh] error in [ParseGEOJSONFeature] hint: %v\n",err)
+                }
+		fmt.Printf("mesh has %v triangles\n",len(mesh))
+
+                // combine the attributes and the NEW MESH geom into a new feature
 		newfeature := Shapes { Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType }
-		newfeature.Points = parsedgeom.([][][]float64)
+		//newfeature.Points = parsedgeom.([][][]float64)
+		newfeature.Points = mesh
 
 		//append the new feature to the outgoing dataset
                 outdataset.Shapes = append(outdataset.Shapes, newfeature)
@@ -556,6 +579,97 @@ func ParseGEOJSONGeom (container *ExtentContainer, feature interface{}) (interfa
         }
 
 	return nil, fmt.Errorf("unrecognized geometry")
+}
+
+
+func PointcloudToMesh (demdir string, pointcloud [][]float64) ([][][]float64,error) {
+
+	// new outgoing mesh
+	var mesh [][][]float64
+
+	// Must create new types of arrays (major PIA)
+
+	// Type 1: []delaunay.Point ( {X,Y} )    ... from the cloud of all poly and enclosed points
+	// ... this is used to build the triangulation mesh
+        var ptarray []delaunay.Point
+
+	for _, coord := range pointcloud {
+		// add points to Type 1
+		// TBD .... elegantly retain elevation instead of re-looking them up when building the triangles
+		var pt1 delaunay.Point
+		pt1.X = coord[0]
+		pt1.Y = coord[1]
+		ptarray = append(ptarray, pt1)
+	}
+
+/*
+	// Type 2: orb.Ring ( []orb.Point = []float64 )   ... from the original polygon only
+	// ... this is used to keep or reject triangles from the mesh if they fall outside the polygon
+	var ring orb.Ring
+
+        for _, linestring := range polygon {
+
+                for _, coord := range linestring {
+
+			// add points to Type 2
+			pt2 := orb.Point{coord[0],coord[1]}
+                        ring = append(ring,pt2)
+                }
+        }
+*/
+	// build the delaunay array of triangles and edges
+	triangulation, err := delaunay.Triangulate(ptarray)
+	if err != nil {
+                return nil, fmt.Errorf("[Triangulate] in pkg [convert] encountered: %v",err)
+        }
+
+	// build each triangle using the delauney array
+	tnum := len(triangulation.Triangles) / 3
+	fmt.Printf("Number of triangles in this polygon: %v\n",tnum)
+
+	ts := triangulation.Triangles
+
+	for t := 1; t < tnum; t++ {
+		//points := make([]delaunay.Point,3)
+		points := make([][]float64,3)
+		var triangle [][]float64
+
+		// find the points of each triangle (refer to delaunay docs)
+		// TBD TEST if the index is in same order as pointcloud, then can grab elevation directly!  ?
+		points[0] = pointcloud[ts[3*t]]
+		points[1] = pointcloud[ts[3*t+1]]
+		points[2] = pointcloud[ts[3*t+2]]
+
+		for _, point := range points {
+			// get the z value
+			//z, _ := GetElev(point.X,point.Y)
+
+			// convert to 3857
+			x, y := To3857(point[0],point[1])
+
+			// build the coordinate
+			coord := []float64{x,y,point[2]}
+
+			// add the coordiate to the triangle
+			triangle = append(triangle,coord)
+		}
+
+		// close the triangle polygon by repeating first point- it's a geojson thing
+		triangle = append(triangle,triangle[0])
+
+		// TBD - do we even need to check if the final results fall within the original polygon boundary?
+		// what about polygons with holes in them?
+
+		// OPTION 1 check if center of each triangle falls within original polygon, then keep or reject
+
+		// OPTION 2 clip the triangles by the original polygon boundary
+
+		mesh = append(mesh, triangle)
+	}
+
+	// return the final mesh
+	return mesh, nil
+
 }
 
 
@@ -730,13 +844,6 @@ func GetElev(x float64, y float64) (float64, error) {
 
         // check Elevation available!!!
         if _, err := DemVrtPath(); err != nil {
-                return math.NaN(), err
-        }
-
-        // get path of dem dir from demvrt, not filename which is the second variable _
-        demdir, _ := filepath.Split(demvrt)
-
-        if _, err := os.Stat(demdir); err != nil {
                 return math.NaN(), err
         }
 

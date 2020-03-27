@@ -49,9 +49,9 @@ func TestCSVData(t *testing.T) {
 
 	// build a map of the testing data and inputs
         data := make(map[string]string)
-	data[pointswithZ] = pointswithZ_input
-	data[pointsnoZ] = pointsnoZ_input
-	data[points4326] = points4326_input
+	//data[pointswithZ] = pointswithZ_input
+	//data[pointsnoZ] = pointsnoZ_input
+	//data[points4326] = points4326_input
 	data[fakepoints] = fakepoints_input
 
 	for item, inputDetails := range data {
@@ -100,9 +100,9 @@ func TestGEOJSONData(t *testing.T) {
 
         // build a map of the testing data and inputs
         data := make(map[string]string)
-	data[pointsgeojson] = pointsgeojson_input
-	data[fakecoords] = fakecoords_input
-        data[lines] = lines_input
+	//data[pointsgeojson] = pointsgeojson_input
+	//data[fakecoords] = fakecoords_input
+        //data[lines] = lines_input
         data[shapes] = shapes_input
 
         for item, inputDetails := range data {
@@ -143,7 +143,12 @@ func TestGEOJSONData(t *testing.T) {
                 }
 
                 fmt.Printf("conversion for %s was successful, result center is %v\n",item,results.Center)
-		//fmt.Printf("%v",string(final))
+
+		// the following prints out the file product, useful for debugging only
+		err = ioutil.WriteFile(inputDetails + ".outfile", final, 0644)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
 
         }
 }
