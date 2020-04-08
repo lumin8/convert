@@ -14,8 +14,11 @@ import (
 	"sync"
 
 	srtm "github.com/lumin8/elev-utils"
+	"github.com/fogleman/delaunay"
         geo "github.com/paulmach/go.geo"
 	geojson "github.com/paulmach/go.geojson"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/planar"
 	"github.com/remeh/sizedwaitgroup"
         "github.com/golang/geo/s2"
 )
@@ -69,7 +72,20 @@ type Shapes struct {
         Name       string      `json:"name" yaml:"name"`
         StyleType  string      `json:"type" yaml:"type"`
         Attributes []Attribute `json:"attributes" yaml:"attributes"`
-        Points     [][][]float64 `json:"points" yaml:"points"`
+        Points     [][][][]float64 `json:"points" yaml:"points"`
+	Vertices   [][]float64 `json:"vertices" yaml:"vertices"`
+        Indices    []int       `json:"indices" yaml:"indices"`
+}
+
+// DEM ...  containing a point array, supports delaunay triangles and edges
+type Dem struct {
+        Id         string      `json:"id" yaml:"id"`
+        Name       string      `json:"name" yaml:"name"`
+        Updated    string      `json:"lastUpdated" yaml:"lastUpdated"`
+        S2         string      `json:"s2" yaml:"s2"`
+        Points     [][]float64 `json:"points" yaml:"points"`
+	Vertices   [][]float64 `json:"vertices" yaml:"vertices"`
+        Indices    []int       `json:"indices" yaml:"indices"`
 }
 
 // Generic Feature ...
@@ -122,6 +138,7 @@ const (
 // demvrt is used to cache the path of the dem.vrt file after it has been resolved once.
 // Note: if the file is moved or deleted the path will not change
 var demvrt = ""
+var demdir = ""
 
 // DemVrtPath is used to resolve the path for the dem.vrt file
 func DemVrtPath() (string, error) {
@@ -143,6 +160,13 @@ func DemVrtPath() (string, error) {
 	}
 
 	demvrt = dvp
+
+	// get path of dem dir from demvrt, not filename which is the second variable _
+        demdir, _ = filepath.Split(demvrt)
+
+        if _, err := os.Stat(demdir); err != nil {
+                return "", err
+        }
 
 	return dvp, nil
 }
@@ -244,7 +268,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	// this kicks off the processing of the data
 	outdataset, err = parseGEOJSONCollection(rawjson, container)
 	if err != nil {
-		return outdataset, err
+		return outdataset, fmt.Errorf("[ParseGEOJSONCollection] in pkg [convert] encountered: %v",err)
 	}
 
 	// close the BBOXlistener goroutine
@@ -254,7 +278,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	c, err := getCenter(container.bbox)
 	if err != nil {
 		// No center of dataset, which means the dataset is invalid
-		return nil, err
+		return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v",err)
 	}
 	outdataset.Center = append(outdataset.Center, c)
 
@@ -320,6 +344,8 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 		return nil, errors.New("no features to parse")
 	}
 
+	fmt.Printf("geojson holds %v features\n",len(collection.Features))
+
 	//access each of the individual features of the geojson
 	for _, item := range collection.Features {
 
@@ -338,7 +364,7 @@ func parseGEOJSONCollection(collection *geojson.FeatureCollection, container *Ex
 		}()
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("[ParseGEOJSONFeature] in pkg [convert] encountered: %v",err)
 		}
 	}
 
@@ -409,17 +435,81 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
                         defer wg.Done()
                         parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Polygon)
                 }()
-                wg.Wait()
-
 		if err != nil {
 			return err
 		}
+		wg.Wait()
 
-                // combine the attributes and the geom into a new feature
+	        // get a 3D point cloud of the polygon
+		polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.Polygon)
+		if err != nil {
+			return fmt.Errorf("[PolygonToMesh] in pkg [convert] encountered: %v",err)
+		}
+
+		// convert polycloud into a triangulation array
+		triangulation, err := DeriveDelaunay(demdir, &polycloud)
+		if err != nil {
+                        return fmt.Errorf("[DeriveDelaunay] called in pkg [convert] encountered: %v",err)
+                }
+
+                // combine the attributes and the NEW MESH geom into a new feature
 		newfeature := Shapes { Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType }
-		newfeature.Points = parsedgeom.([][][]float64)
+		newfeature.Vertices = polycloud
+		newfeature.Indices = triangulation.Triangles
 
 		//append the new feature to the outgoing dataset
+                outdataset.Shapes = append(outdataset.Shapes, newfeature)
+
+	case "MultiPolygon", "MultiPolygonZ":
+		go func() {
+                        defer wg.Done()
+                        parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.MultiPolygon)
+                }()
+                if err != nil {
+                        return err
+                }
+                wg.Wait()
+
+		// how many polygons are in the multipolygon?
+		fmt.Printf("number of features within this multipolygon: %v\n",len(gfeature.Geojson.Geometry.MultiPolygon[0]))
+
+		// get a 3D point cloud of the polygon
+                polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.MultiPolygon[0])
+                if err != nil {
+                        return fmt.Errorf("[PolygonToMesh] in pkg [convert] encountered: %v",err)
+                }
+
+		fmt.Printf("number of starting valid points: %v\n",len(polycloud))
+
+		// remove points of the pointcloud that might fall within holes etc BEFORE deriving delaunay triangles
+		var verifiedpointcloud [][]float64
+		for i, pt := range polycloud {
+			if srtm.IsPointInsideMultiPolygon(gfeature.Geojson.Geometry.MultiPolygon, pt) == true {
+				verifiedpointcloud = append(verifiedpointcloud,polycloud[i])
+			}
+		}
+
+		fmt.Printf("number of new valid points: %v\n",len(verifiedpointcloud))
+
+                // convert polycloud into a triangulation array
+                triangulation, err := DeriveDelaunay(demdir, &verifiedpointcloud)
+                if err != nil {
+                        return fmt.Errorf("[DeriveDelaunay] called in pkg [convert] encountered: %v",err)
+                }
+
+		fmt.Printf("number of starting triangles: %v\n",len(triangulation.Triangles)/3)
+
+		// delaunay doesn't know about holes, so parse the triangles for those within holes
+		verifiedtriangles := VerifyDelaunay(verifiedpointcloud, triangulation.Triangles, gfeature.Geojson.Geometry.MultiPolygon)
+
+		fmt.Printf("number of new valid triangles: %v\n",len(verifiedtriangles)/3)
+
+                // combine the attributes and the NEW vertices/indices into a new feature
+                newfeature := Shapes { Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType }
+                newfeature.Vertices = verifiedpointcloud
+                newfeature.Indices = verifiedtriangles
+
+                //append the new feature to the outgoing dataset
                 outdataset.Shapes = append(outdataset.Shapes, newfeature)
 
 	default:
@@ -468,11 +558,11 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 	return atts
 }
 
-//ParseGEOJSONGeom uses generic recursion to process the geometry arrays
+//ParseGEOJSONGeom uses generic recursion to process the nested geometry arrays
 // point	[]float64
 // linestring	[][]float64 *the most common shared pattern
-// polygon	[][][]float64 --^ for loops back up to
-// multipolygon	[][][][]float64 --^ for loops back up to
+// polygon	[][][]float64 --^ for loops back up to linestring
+// multipolygon	[][][][]float64 --^ for loops back up to polygon
 func ParseGEOJSONGeom (container *ExtentContainer, feature interface{}) (interface{},error) {
 
 	switch v := feature.(type) {
@@ -530,6 +620,7 @@ func ParseGEOJSONGeom (container *ExtentContainer, feature interface{}) (interfa
 				return nil, err
 			}
 
+			// we use the same level as a multipolygon, reduces # app parse paths
 			parsedfeature = append(parsedfeature, nextlevel.([][]float64))
 		}
 
@@ -556,6 +647,101 @@ func ParseGEOJSONGeom (container *ExtentContainer, feature interface{}) (interfa
         }
 
 	return nil, fmt.Errorf("unrecognized geometry")
+}
+
+
+// PointcloudToDEM is a helper function for populating a dem object
+func PointcloudToDem (demdir string, pointcloud [][]float64) (*Dem, error) {
+        var dem Dem
+
+        // build the triangles and edges arrays
+        delaunayArray, err := DeriveDelaunay(demdir, &pointcloud)
+        if err != nil {
+                return &dem, fmt.Errorf("[DeriveDelaunay] called by [PointcloudToDem] in pkg [convert] encountered: %v",err)
+        }
+
+	//dem.Points = append(dem.Points[:0:0], pointcloud...)
+	//dem.Triangles = append(dem.Triangles[:0:0], delaunayArray.Triangles...)
+
+	dem.Points = pointcloud
+	dem.Vertices = pointcloud
+	dem.Indices = delaunayArray.Triangles
+
+	//if Edges need to be supported in the future
+	//dem.Edges = delaunayArray.Halfedges
+
+	fmt.Printf("num of triangles in delaunay array (%v) vs. dem array (%v).",len(delaunayArray.Triangles)/3,len(dem.Vertices)/3)
+
+	return &dem, nil
+}
+
+
+// DeriveDelaunay takes a pointcloud array, and fills in the triangles and edges arrays
+func DeriveDelaunay (demdir string, pointcloud *[][]float64) (*delaunay.Triangulation, error) {
+	// []delaunay.Point {X,Y} required to build the triangulation mesh
+        var ptarray []delaunay.Point
+
+	// populate the delaunay array from dem
+        for _, coord := range *pointcloud {
+                // add points to Type 1
+                var pt1 delaunay.Point
+                pt1.X = coord[0]
+                pt1.Y = coord[1]
+                ptarray = append(ptarray, pt1)
+        }
+
+	// build the delaunay array of triangles and edges
+        triangulation, err := delaunay.Triangulate(ptarray)
+        if err != nil {
+                return triangulation, fmt.Errorf("[delaunay.Triangulate] in pkg [convert] encountered: %v",err)
+        }
+
+	return triangulation, nil
+}
+
+
+// VerifyDelaunay removes triangle from slice if triangle center falls within multipolygon inner rings
+func VerifyDelaunay (pointcloud [][]float64, triangles []int, multipolygon [][][][]float64) []int {
+
+	// prepare a new triangles (vertices) delaunay array... we're slicing up the old one
+	var verifiedtriangles []int
+
+	// get number of triangles
+        trinum := len(triangles)/3
+
+	// cycle through each triangle, build it, find centroid, test if falls within multiring
+        for t := 0; t < trinum; t++ {
+
+		// each triangle is a new ring
+                var triangle orb.Ring
+
+                // find the points of each triangle (refer to delaunay docs)
+		var points [][]float64
+                points = append(points,pointcloud[triangles[3*t]])
+                points = append(points,pointcloud[triangles[3*t+1]])
+                points = append(points,pointcloud[triangles[3*t+2]])
+
+                // add each coordinate to the triangle
+                triangle = append(triangle,orb.Point{points[0][0],points[0][1]})
+		triangle = append(triangle,orb.Point{points[1][0],points[1][1]})
+		triangle = append(triangle,orb.Point{points[2][0],points[2][1]})
+		triangle = append(triangle,orb.Point{points[0][0],points[0][1]})
+
+		tricenter, _ := planar.CentroidArea(triangle)
+
+		// need it as []float64 not orb.Point
+		tricenterfloat := []float64{tricenter[0],tricenter[1]}
+
+		// test if the multipolygon contains the triangle centroid
+		if srtm.IsPointInsideMultiPolygon(multipolygon, tricenterfloat) == true {
+			//copy all three triangle vertices to new triangles array
+			verifiedtriangles = append(verifiedtriangles,triangles[3*t])
+			verifiedtriangles = append(verifiedtriangles,triangles[3*t+1])
+			verifiedtriangles = append(verifiedtriangles,triangles[3*t+2])
+		}
+	}
+
+	return verifiedtriangles
 }
 
 
@@ -634,7 +820,7 @@ func getCenter(bbox map[string]float64) (Point, error) {
         c.Z, err = GetElev(c.X, c.Y)
         if err != nil {
                 // ok to return empty center
-                return c, err
+                return c, fmt.Errorf("[GetElev] in pkg [convert] encountered: %v",err)
         }
 
         return c, nil
@@ -733,17 +919,10 @@ func GetElev(x float64, y float64) (float64, error) {
                 return math.NaN(), err
         }
 
-        // get path of dem dir from demvrt, not filename which is the second variable _
-        demdir, _ := filepath.Split(demvrt)
-
-        if _, err := os.Stat(demdir); err != nil {
-                return math.NaN(), err
-        }
-
         // call the elevation service
         z, err := srtm.ElevationFromLatLon(demdir, lat, lon)
         if err != nil {
-                return 0.0, err
+                return 0.0, fmt.Errorf("[srtm.ElevationFromLatLon] by GetElev encountered: %v",err)
         }
 
         // raise an error if z not found

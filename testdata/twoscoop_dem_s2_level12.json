@@ -1,0 +1,14 @@
+{  
+  "id": 1,
+  "xfield": "X",
+  "yfield": "Y",
+  "zfield": "",
+  "xcenter": -14615548,
+  "ycenter": 7772618,
+  "zcenter": 1298,
+  "srs": 4326,
+  "units": "metric",
+  "format": "geojson",
+  "geom":"polygon"
+}
+
