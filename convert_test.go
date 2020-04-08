@@ -32,8 +32,14 @@ const (
 	lines = "testdata/bonanza/bonanza_lines.geojson"
 	lines_input = "testdata/bonanza/bonanza_lines.json"
 
-	shapes = "testdata/bonanza/bonanza_formations.geojson"
-	shapes_input = "testdata/bonanza/bonanza_formations.json"
+	largeshapes = "testdata/bonanza/bonanza_formations.geojson"
+	largeshapes_input = "testdata/bonanza/bonanza_formations.json"
+
+	manyshapes = "testdata/bonanza/bonanza_outcrops.geojson"
+        manyshapes_input = "testdata/bonanza/bonanza_outcrops.json"
+
+	singleshape = "testdata/twoscoop_dem_s2_level12.geojson"
+	singleshape_input = "testdata/twoscoop_dem_s2_level12.json"
 )
 
 
@@ -49,9 +55,9 @@ func TestCSVData(t *testing.T) {
 
 	// build a map of the testing data and inputs
         data := make(map[string]string)
-	//data[pointswithZ] = pointswithZ_input
-	//data[pointsnoZ] = pointsnoZ_input
-	//data[points4326] = points4326_input
+	data[pointswithZ] = pointswithZ_input
+	data[pointsnoZ] = pointsnoZ_input
+	data[points4326] = points4326_input
 	data[fakepoints] = fakepoints_input
 
 	for item, inputDetails := range data {
@@ -100,10 +106,12 @@ func TestGEOJSONData(t *testing.T) {
 
         // build a map of the testing data and inputs
         data := make(map[string]string)
-	//data[pointsgeojson] = pointsgeojson_input
+	data[pointsgeojson] = pointsgeojson_input
 	//data[fakecoords] = fakecoords_input
-        //data[lines] = lines_input
-        data[shapes] = shapes_input
+        data[lines] = lines_input
+	data[largeshapes] = largeshapes_input //polygons
+        data[manyshapes] = manyshapes_input //multipolygons
+	data[singleshape] = singleshape_input //a single very large polygon
 
         for item, inputDetails := range data {
 
@@ -126,7 +134,7 @@ func TestGEOJSONData(t *testing.T) {
                 results, err := DatasetFromGEOJSON(input.Xfield, input.Yfield, input.Zfield, data)
 
                 if err != nil {
-                        t.Errorf("geojson conversion error, no valid features for %s: %s\n",item,err.Error())
+                        t.Errorf("[DatasetFromGEOJSON] in pkg [convert], geojson conversion error for %s: %s\n",item,err.Error())
                 }
 
 		// parse the results
@@ -138,7 +146,7 @@ func TestGEOJSONData(t *testing.T) {
                 // if no center, the conversion is BUNK
 		// guessing that the final string should be more than 100 characters
                 if results == nil {
-                        t.Logf("no valid features were found for %s:%v\n",item,final)
+                        t.Logf("no or limited results for %s:%v\n",item,final)
                         return
                 }
 
