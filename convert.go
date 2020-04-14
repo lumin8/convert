@@ -76,18 +76,8 @@ type Shapes struct {
 	Indices    []int           `json:"indices" yaml:"indices"`
 }
 
-// DEM ...  containing a point array, supports delaunay triangles and edges
-type Dem struct {
-	Id       string      `json:"id" yaml:"id"`
-	Name     string      `json:"name" yaml:"name"`
-	Updated  string      `json:"lastUpdated" yaml:"lastUpdated"`
-	S2       string      `json:"s2" yaml:"s2"`
-	Points   [][]float64 `json:"points" yaml:"points"`
-	Vertices [][]float64 `json:"vertices" yaml:"vertices"`
-	Indices  []int       `json:"indices" yaml:"indices"`
-}
-
-// Generic Feature ...
+// Generic Feature is a convenience, holds certain feature info
+// during recursive parsing.  Not used in any final product
 type Generic struct {
 	ID              string      `json:"id" yaml:"id"`
 	Name            string      `json:"name" yaml:"name"`
