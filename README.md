@@ -38,7 +38,7 @@ Explodes the feature geometry, coordinate by coordinate, uses `GetElev` to fill 
 Explodes the feature attributes, maps *name*, *styletype*, and *id* to a higher object level in the `FeatureInfo`, removes attributes with missing/nil values (keeping the resulting Unity json as trim as possible), and moves all cleaned key:value attribute pairs to the new `FeatureInfo`.
 
 
-## Secondary Functions  (these should be moved to seperate toolset TBD!!!)
+## Secondary Functions
 
 ### GetElev(x float64, y float64) (float64, error)
 Takes x and y, provides a single elevation in *meters*
