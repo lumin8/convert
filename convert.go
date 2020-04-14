@@ -821,7 +821,7 @@ func getCenter(bbox map[string]float64) (Point, error) {
 	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
 
 	//get the center of the bbox
-	c.Z, err = GetElev(c.X, c.Y)
+	c.Z, err = srtm.GetElev(c.X, c.Y)
 	if err != nil {
 		// ok to return empty center
 		return c, fmt.Errorf("[GetElev] in pkg [convert] encountered: %v", err)
@@ -844,7 +844,7 @@ func s2covering(bbox map[string]float64) []string {
 	lx, ly := To4326(bbox["lx"], bbox["ly"])
 
 	// gets final elevation for center calculated point
-	cz, err := GetElev(bbox["rx"], bbox["uy"])
+	cz, err := srtm.GetElev(bbox["rx"], bbox["uy"])
 	if err != nil {
 		// ok to return empty s2hash
 		return s2hash
@@ -893,7 +893,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 		x, y := To3857(coord[0], coord[1])
 
 		// z is needed
-		z, err := GetElev(coord[0], coord[1])
+		z, err := srtm.GetElev(coord[0], coord[1])
 		if err != nil {
 			return coord, err
 		}
