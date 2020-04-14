@@ -76,18 +76,8 @@ type Shapes struct {
 	Indices    []int           `json:"indices" yaml:"indices"`
 }
 
-// DEM ...  containing a point array, supports delaunay triangles and edges
-type Dem struct {
-	Id       string      `json:"id" yaml:"id"`
-	Name     string      `json:"name" yaml:"name"`
-	Updated  string      `json:"lastUpdated" yaml:"lastUpdated"`
-	S2       string      `json:"s2" yaml:"s2"`
-	Points   [][]float64 `json:"points" yaml:"points"`
-	Vertices [][]float64 `json:"vertices" yaml:"vertices"`
-	Indices  []int       `json:"indices" yaml:"indices"`
-}
-
-// Generic Feature ...
+// Generic Feature is a convenience, holds certain feature info
+// during recursive parsing.  Not used in any final product
 type Generic struct {
 	ID              string      `json:"id" yaml:"id"`
 	Name            string      `json:"name" yaml:"name"`
@@ -656,8 +646,9 @@ func ParseGEOJSONGeom(container *ExtentContainer, feature interface{}) (interfac
 }
 
 // PointcloudToDEM is a helper function for populating a dem object
-func PointcloudToDem(demdir string, pointcloud [][]float64) (*Dem, error) {
-	var dem Dem
+func PointcloudToDem(demdir string, pointcloud [][]float64) (*Datasets, error) {
+	var dem Datasets
+	var mesh Shapes
 
 	// build the triangles and edges arrays
 	delaunayArray, err := DeriveDelaunay(demdir, &pointcloud)
@@ -671,14 +662,14 @@ func PointcloudToDem(demdir string, pointcloud [][]float64) (*Dem, error) {
 
 	newcloud := PointcloudTo3857(pointcloud)
 
-	dem.Points = newcloud
-	dem.Vertices = newcloud
-	dem.Indices = delaunayArray.Triangles
-
-	//if Edges may need to be supported in the future
-	//dem.Edges = delaunayArray.Halfedges
-
-	fmt.Printf("num of triangles in delaunay array (%v) vs. dem array (%v).", len(delaunayArray.Triangles)/3, len(dem.Vertices)/3)
+	for _, coord := range newcloud {
+		var point Points
+		point.Points = coord
+		dem.Points = append(dem.Points,point)
+	}
+	mesh.Vertices = newcloud
+	mesh.Indices = delaunayArray.Triangles
+	dem.Shapes = append(dem.Shapes,mesh)
 
 	return &dem, nil
 }

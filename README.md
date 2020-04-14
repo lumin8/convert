@@ -1,14 +1,14 @@
 # Convert
 
-Convert holds several golang tools used to convert csv, postgres json, and geojson into Deep AR (Unity) - style json.
+Convert holds several golang tools used to convert csv, postgres json, and geojson into MineAR (Unity) - style json.
 
-In principle this tool is used by Deep AR's **admin** utility, and Map.Life's **dataman** utility, both enabling uploads of data and/or requests of data, where the output is intended to be read by Deep AR, using a unique style of json structure.
+This tool is a replicate of the pkg by same name within MineAR's **admin** utility, and heavily used by Map.Life's **dataman** utility.
 
 The output is a ```Datasets``` struct, which can hold any number of features (points, lines, and shapes), and attributes for each feature.
 
-The final ```Datasets``` struct must be json-marshaled prior to use in Deep AR or most other cases.
+The final ```Datasets``` struct must be json-marshaled prior to use in MineAR.
 
-Note: this package spawns a unique channel & goroutine for each dataset processed, called and `ExtendContainer`, if AND ONLY IF and entire dataset is being converted.  The purpose of this `ExtentContainer` is to asynchronously handle coordinates flying into the channel, figure out which four form the bottom-left and top-right coordinates of the enclosing bounding box `bbox` (aka *Extent*), which is then processed to find the Center point, to which a user will zoom if they select the `Datasets` in VR mode in Deep AR.  This `bbox` also forms the basis for configuring the S2 coverage- a series of keys or 'tokens' representing certain polygons on the ground- which can thusly be used to find associated features or datasets (eg. roads, rivers, DEM, etc) from key:value stores like a leveldb without having to perform complicated `ST_Intersects` queries.   The bbox and S2 keys are very important.
+Note: this package spawns a unique channel & goroutine for each dataset processed, called an `ExtentContainer`.  The purpose of this `ExtentContainer` is to asynchronously handle coordinates flying into the channel, figure out which four form the bottom-left and top-right coordinates of the enclosing bounding box `bbox` (aka *Extent*), which is then processed to find the Center point, to which a user will zoom if they select the `Datasets` in VR mode in MineAR.  This `bbox` also forms the basis for configuring the S2 coverage- a series of keys or 'tokens' representing certain polygons on the ground- which may be used to find associated features or datasets (eg. roads, rivers, DEM, etc) from key:value stores without having to perform complicated `ST_Intersects` queries.   The bbox and S2 keys are very important.
 
 
 ## Primary Functions
