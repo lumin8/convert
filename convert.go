@@ -656,8 +656,9 @@ func ParseGEOJSONGeom(container *ExtentContainer, feature interface{}) (interfac
 }
 
 // PointcloudToDEM is a helper function for populating a dem object
-func PointcloudToDem(demdir string, pointcloud [][]float64) (*Dem, error) {
-	var dem Dem
+func PointcloudToDem(demdir string, pointcloud [][]float64) (*Datasets, error) {
+	var dem Datasets
+	var mesh Shapes
 
 	// build the triangles and edges arrays
 	delaunayArray, err := DeriveDelaunay(demdir, &pointcloud)
@@ -671,14 +672,14 @@ func PointcloudToDem(demdir string, pointcloud [][]float64) (*Dem, error) {
 
 	newcloud := PointcloudTo3857(pointcloud)
 
-	dem.Points = newcloud
-	dem.Vertices = newcloud
-	dem.Indices = delaunayArray.Triangles
-
-	//if Edges may need to be supported in the future
-	//dem.Edges = delaunayArray.Halfedges
-
-	fmt.Printf("num of triangles in delaunay array (%v) vs. dem array (%v).", len(delaunayArray.Triangles)/3, len(dem.Vertices)/3)
+	for _, coord := range newcloud {
+		var point Points
+		point.Points = coord
+		dem.Points = append(dem.Points,point)
+	}
+	mesh.Vertices = newcloud
+	mesh.Indices = delaunayArray.Triangles
+	dem.Shapes = append(dem.Shapes,mesh)
 
 	return &dem, nil
 }
