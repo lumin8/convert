@@ -544,7 +544,7 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 			gfeature.StyleType = fmt.Sprintf("%v", v)
 		case "id", "fid", "osm_id", "uid", "uuid":
 			gfeature.ID = fmt.Sprintf("%v", v)
-		case "tags":
+		case "tags","way","geomz":
 			//do nothing
 		default:
 			var attrib Attribute
@@ -656,6 +656,9 @@ func PointcloudToDem(demdir string, pointcloud [][]float64) (*Datasets, error) {
 		return &dem, fmt.Errorf("[DeriveDelaunay] called by [PointcloudToDem] in pkg [convert] encountered: %v", err)
 	}
 
+	// get rid of artifacts that don't belong in the point cloud (edge cases where corners join w/corners)
+	trimmedTriangles := TrimDEMEdges(pointcloud, delaunayArray.Triangles)
+
 	// Try these instead of the below if order isn't preserved
 	//dem.Points = append(dem.Points[:0:0], pointcloud...)
 	//dem.Triangles = append(dem.Triangles[:0:0], delaunayArray.Triangles...)
@@ -668,7 +671,7 @@ func PointcloudToDem(demdir string, pointcloud [][]float64) (*Datasets, error) {
 		dem.Points = append(dem.Points,point)
 	}
 	mesh.Vertices = newcloud
-	mesh.Indices = delaunayArray.Triangles
+	mesh.Indices = trimmedTriangles
 	dem.Shapes = append(dem.Shapes,mesh)
 
 	return &dem, nil
@@ -739,6 +742,49 @@ func VerifyDelaunay(pointcloud [][]float64, triangles []int, multipolygon [][][]
 	}
 
 	return verifiedtriangles
+}
+
+// TrimEdges removes triangle from DEM slice if triangle is inappropraite (connects points that shouldn't be connected eg corners to corners)
+func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
+
+        // prepare a new triangles (vertices) delaunay array... we're slicing up the old one
+        var verifiedtriangles []int
+
+        // get number of triangles
+        trinum := len(triangles) / 3
+
+        // cycle through each triangle, build it, find centroid, test if falls within multiring
+        for t := 0; t < trinum; t++ {
+
+                // each triangle is a new ring
+                var triangle orb.Ring
+
+                // find the points of each triangle (refer to delaunay docs)
+                var points [][]float64
+                points = append(points, pointcloud[triangles[3*t]])
+                points = append(points, pointcloud[triangles[3*t+1]])
+                points = append(points, pointcloud[triangles[3*t+2]])
+
+                // add each coordinate to the triangle
+                triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
+                triangle = append(triangle, orb.Point{points[1][0], points[1][1]})
+                triangle = append(triangle, orb.Point{points[2][0], points[2][1]})
+                triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
+
+		// don't need the center, just the area
+                triarea := planar.Area(triangle)
+		//fmt.Println("Triangle area: %v",triarea)
+
+		// abritrary, trial and error
+                if math.Abs(triarea) > .0000000448 && math.Abs(triarea) < .0000000450 {
+                        //copy all three triangle vertices to new triangles array
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t])
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
+                }
+        }
+
+        return verifiedtriangles
 }
 
 func PointcloudTo3857(pointcloud [][]float64) [][]float64 {
@@ -821,7 +867,7 @@ func getCenter(bbox map[string]float64) (Point, error) {
 	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
 
 	//get the center of the bbox
-	c.Z, err = srtm.GetElev(c.X, c.Y)
+	c.Z, err = GetElev(c.X, c.Y)
 	if err != nil {
 		// ok to return empty center
 		return c, fmt.Errorf("[GetElev] in pkg [convert] encountered: %v", err)
@@ -844,7 +890,7 @@ func s2covering(bbox map[string]float64) []string {
 	lx, ly := To4326(bbox["lx"], bbox["ly"])
 
 	// gets final elevation for center calculated point
-	cz, err := srtm.GetElev(bbox["rx"], bbox["uy"])
+	cz, err := GetElev(bbox["rx"], bbox["uy"])
 	if err != nil {
 		// ok to return empty s2hash
 		return s2hash
@@ -893,7 +939,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 		x, y := To3857(coord[0], coord[1])
 
 		// z is needed
-		z, err := srtm.GetElev(coord[0], coord[1])
+		z, err := GetElev(coord[0], coord[1])
 		if err != nil {
 			return coord, err
 		}
@@ -925,7 +971,7 @@ func GetElev(x float64, y float64) (float64, error) {
 	// call the elevation service
 	z, err := srtm.ElevationFromLatLon(demdir, lat, lon)
 	if err != nil {
-		return 0.0, fmt.Errorf("[srtm.ElevationFromLatLon] by GetElev encountered: %v", err)
+		return 0.0, fmt.Errorf("[GetElev] in pkg [convert] encountered: %v", err)
 	}
 
 	// raise an error if z not found
