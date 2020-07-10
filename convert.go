@@ -771,6 +771,9 @@ func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
                 triangle = append(triangle, orb.Point{points[2][0], points[2][1]})
                 triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
 
+
+		// OPTION 1, IF TRIANGLE HAS BIG AREA, REJECT IT
+/*
 		// don't need the center, just the area
                 triarea := planar.Area(triangle)
 		//fmt.Println("Triangle area: %v",triarea)
@@ -782,6 +785,21 @@ func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
                         verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
                         verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
                 }
+*/
+		// OPTION 2, IF TRIANGLE is really long, REJECT IT
+
+		trilength := planar.Length(triangle)
+		fmt.Printf("Triangle length: %v",trilength)
+
+		// arbitrary, trial and error
+		if trilength < .0000004 {
+			//copy all three triangle vertices to new triangles array
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t])
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
+                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
+		}
+
+
         }
 
         return verifiedtriangles
