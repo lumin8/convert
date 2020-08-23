@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/amundsentech/kml-decode"
+	"github.com/amundsentech/gpx-decode"
 	"github.com/fogleman/delaunay"
 	"github.com/golang/geo/s2"
 	srtm "github.com/lumin8/elev-utils"
@@ -367,6 +368,149 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 	}
 
 	// close the BBOXlistener goroutine
+        close(container.ch)
+
+        // configure the center point... in 4326
+        c, err := getCenter(container.bbox)
+        if err != nil {
+                // No center of dataset, which means the dataset is invalid
+                return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
+        }
+        outdataset.Center = append(outdataset.Center, c)
+
+        // configure the s2 array... in 4326
+        outdataset.S2 = s2covering(container.bbox)
+
+        return &outdataset, nil
+}
+
+// Dataset from GPX
+func DatasetFromGPX(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
+        var outdataset Datasets
+        var gpx gpxdecode.GPX
+
+        // ensure demvrt is set, can't proceed without
+        if _, err := DemVrtPath(); err != nil {
+                return nil, err
+        }
+
+        // read the inbound file
+        raw, err := ioutil.ReadAll(contents)
+        if err != nil {
+                return &outdataset, err
+        }
+
+        gpxbuf := bytes.NewBuffer(raw)
+
+        // decode the kml into a struct
+        gpxdecode.GPXDecode(gpxbuf, &gpx)
+
+        // start a container to watch the coords, build bbox and center
+        container := initExtentContainer()
+
+        // TBD get dataset name
+        // outdataset.Name = gpx.?.Name
+
+	// is point
+	if gpx.Waypoint != nil && len(gpx.Waypoint) >= 0 {
+
+		for _, record := range gpx.Waypoint {
+
+			// parse Attributes
+			var attributes []Attribute
+			for _, att := range record.Extensions.OGR {
+				var attribute Attribute
+				attribute.Key = att.Key
+				attribute.Value = att.Value
+				attributes = append(attributes,attribute)
+			}
+
+			// parse Geom
+			point := []float64{record.Lon,record.Lat,record.Ele}
+
+                        parsedgeom, _ := ParseGEOJSONGeom(container, point)
+                        if err != nil {
+                                fmt.Printf("%v",err.Error())
+                                continue
+                        }
+
+                        newfeature := Points{Attributes: attributes, Name: record.Name}
+                        newfeature.Points = parsedgeom.([]float64)
+                        outdataset.Points = append(outdataset.Points, newfeature)
+                }
+	}
+
+	// is route
+        if gpx.Route != nil && len(gpx.Route) >= 0 {
+
+		for _, record := range gpx.Route {
+
+			// parse Attributes
+                        var attributes []Attribute
+                        for _, att := range record.Extensions.OGR {
+                                var attribute Attribute
+                                attribute.Key = att.Key
+                                attribute.Value = att.Value
+                                attributes = append(attributes,attribute)
+                        }
+
+			// parse Geom
+			var line [][]float64
+			for _, coord := range record.RoutePoints {
+				point := []float64{coord.Lon,coord.Lat,coord.Ele}
+				line = append(line,point)
+			}
+
+                        parsedgeom, _ := ParseGEOJSONGeom(container, line)
+                        if err != nil {
+                                fmt.Printf("%v",err.Error())
+                                continue
+                        }
+
+                        newfeature := Lines{Attributes: attributes, Name: record.Name}
+                        newfeature.Points = parsedgeom.([][]float64)
+                        outdataset.Lines = append(outdataset.Lines, newfeature)
+
+                }
+	}
+
+	// is track
+        if gpx.Track != nil && len(gpx.Track) >= 0 {
+
+                for _, record := range gpx.Track {
+
+                        // parse Attributes
+                        var attributes []Attribute
+                        for _, att := range record.Extensions.OGR {
+                                var attribute Attribute
+                                attribute.Key = att.Key
+                                attribute.Value = att.Value
+                                attributes = append(attributes,attribute)
+                        }
+
+                        // parse Geom
+                        var line [][]float64
+                        for _, track := range record.TrackSegment {
+			  for _, coord := range track.TrackPoint {
+                                point := []float64{coord.Lon,coord.Lat,coord.Ele}
+                                line = append(line,point)
+			  }
+                        }
+
+                        parsedgeom, _ := ParseGEOJSONGeom(container, line)
+                        if err != nil {
+                                fmt.Printf("%v",err.Error())
+                                continue
+                        }
+
+                        newfeature := Lines{Attributes: attributes, Name: record.Name}
+                        newfeature.Points = parsedgeom.([][]float64)
+                        outdataset.Lines = append(outdataset.Lines, newfeature)
+
+                }
+        }
+
+        // close the BBOXlistener goroutine
         close(container.ch)
 
         // configure the center point... in 4326
