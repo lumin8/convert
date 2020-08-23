@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/amundsentech/kml-decode"
 	"github.com/amundsentech/gpx-decode"
+	"github.com/amundsentech/kml-decode"
 	"github.com/fogleman/delaunay"
 	"github.com/golang/geo/s2"
 	srtm "github.com/lumin8/elev-utils"
@@ -289,16 +289,16 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 	var outdataset Datasets
 	var kml kmldecode.KML
 
-        // ensure demvrt is set, can't proceed without
-        if _, err := DemVrtPath(); err != nil {
-                return nil, err
-        }
+	// ensure demvrt is set, can't proceed without
+	if _, err := DemVrtPath(); err != nil {
+		return nil, err
+	}
 
 	// read the inbound file
 	raw, err := ioutil.ReadAll(contents)
-        if err != nil {
-                return &outdataset, err
-        }
+	if err != nil {
+		return &outdataset, err
+	}
 
 	kmlbuf := bytes.NewBuffer(raw)
 
@@ -306,7 +306,7 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 	kmldecode.KMLDecode(kmlbuf, &kml)
 
 	// start a container to watch the coords, build bbox and center
-        container := initExtentContainer()
+	container := initExtentContainer()
 
 	// get dataset name
 	outdataset.Name = kml.Document.Folder.Name
@@ -319,30 +319,30 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 			var attribute Attribute
 			attribute.Key = att.Key
 			attribute.Value = att.Value
-			attributes = append(attributes,attribute)
+			attributes = append(attributes, attribute)
 		}
 
 		// is point
-                if record.Point.Coordinates != nil && len(record.Point.Coordinates) >= 0 {
-			parsedgeom, _ := ParseGEOJSONGeom(container, record.Point.Coordinates)
+		if record.Point.Coordinates != nil && len(record.Point.Coordinates) >= 0 {
+			parsedgeom, _ := ParseNestedGeom(container, record.Point.Coordinates)
 			if err != nil {
-				fmt.Printf("%v",err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
-                        newfeature := Points{Attributes: attributes, Name: record.Name}
-                        newfeature.Points = parsedgeom.([]float64)
+			newfeature := Points{Attributes: attributes, Name: record.Name}
+			newfeature.Points = parsedgeom.([]float64)
 
-                        outdataset.Points = append(outdataset.Points, newfeature)
+			outdataset.Points = append(outdataset.Points, newfeature)
 		}
 
 		// is line
 		if record.MultiGeometry.LineString.Coordinates != nil && len(record.MultiGeometry.LineString.Coordinates) >= 0 {
-			parsedgeom, _ := ParseGEOJSONGeom(container, record.MultiGeometry.LineString.Coordinates)
+			parsedgeom, _ := ParseNestedGeom(container, record.MultiGeometry.LineString.Coordinates)
 			if err != nil {
-                                fmt.Printf("%v",err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
-                        }
+			}
 
 			newfeature := Lines{Attributes: attributes, Name: record.Name}
 			newfeature.Points = parsedgeom.([][]float64)
@@ -351,65 +351,65 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 
 		// is polygon
 		if record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates != nil && len(record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates) >= 0 {
-			parsedgeom, _ := ParseGEOJSONGeom(container, record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates)
+			parsedgeom, _ := ParseNestedGeom(container, record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates)
 			if err != nil {
-				fmt.Printf("%v",err.Error())
-                                continue
-                        }
+				fmt.Printf("%v", err.Error())
+				continue
+			}
 
 			// kml shapes are [][]float64, must convert to [][][][]float64
 			var poly [][][]float64
-			poly = append(poly,parsedgeom.([][]float64))
+			poly = append(poly, parsedgeom.([][]float64))
 
-                        newfeature := Shapes{Attributes: attributes, Name: record.Name}
-                        newfeature.Points = append(newfeature.Points,poly)
-                        outdataset.Shapes = append(outdataset.Shapes, newfeature)
+			newfeature := Shapes{Attributes: attributes, Name: record.Name}
+			newfeature.Points = append(newfeature.Points, poly)
+			outdataset.Shapes = append(outdataset.Shapes, newfeature)
 		}
 	}
 
 	// close the BBOXlistener goroutine
-        close(container.ch)
+	close(container.ch)
 
-        // configure the center point... in 4326
-        c, err := getCenter(container.bbox)
-        if err != nil {
-                // No center of dataset, which means the dataset is invalid
-                return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
-        }
-        outdataset.Center = append(outdataset.Center, c)
+	// configure the center point... in 4326
+	c, err := getCenter(container.bbox)
+	if err != nil {
+		// No center of dataset, which means the dataset is invalid
+		return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
+	}
+	outdataset.Center = append(outdataset.Center, c)
 
-        // configure the s2 array... in 4326
-        outdataset.S2 = s2covering(container.bbox)
+	// configure the s2 array... in 4326
+	outdataset.S2 = s2covering(container.bbox)
 
-        return &outdataset, nil
+	return &outdataset, nil
 }
 
 // Dataset from GPX
 func DatasetFromGPX(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
-        var outdataset Datasets
-        var gpx gpxdecode.GPX
+	var outdataset Datasets
+	var gpx gpxdecode.GPX
 
-        // ensure demvrt is set, can't proceed without
-        if _, err := DemVrtPath(); err != nil {
-                return nil, err
-        }
+	// ensure demvrt is set, can't proceed without
+	if _, err := DemVrtPath(); err != nil {
+		return nil, err
+	}
 
-        // read the inbound file
-        raw, err := ioutil.ReadAll(contents)
-        if err != nil {
-                return &outdataset, err
-        }
+	// read the inbound file
+	raw, err := ioutil.ReadAll(contents)
+	if err != nil {
+		return &outdataset, err
+	}
 
-        gpxbuf := bytes.NewBuffer(raw)
+	gpxbuf := bytes.NewBuffer(raw)
 
-        // decode the kml into a struct
-        gpxdecode.GPXDecode(gpxbuf, &gpx)
+	// decode the kml into a struct
+	gpxdecode.GPXDecode(gpxbuf, &gpx)
 
-        // start a container to watch the coords, build bbox and center
-        container := initExtentContainer()
+	// start a container to watch the coords, build bbox and center
+	container := initExtentContainer()
 
-        // TBD get dataset name
-        // outdataset.Name = gpx.?.Name
+	// TBD get dataset name
+	// outdataset.Name = gpx.?.Name
 
 	// is point
 	if gpx.Waypoint != nil && len(gpx.Waypoint) >= 0 {
@@ -422,109 +422,109 @@ func DatasetFromGPX(xField string, yField string, zField string, contents io.Rea
 				var attribute Attribute
 				attribute.Key = att.Key
 				attribute.Value = att.Value
-				attributes = append(attributes,attribute)
+				attributes = append(attributes, attribute)
 			}
 
 			// parse Geom
-			point := []float64{record.Lon,record.Lat,record.Ele}
+			point := []float64{record.Lon, record.Lat, record.Ele}
 
-                        parsedgeom, _ := ParseGEOJSONGeom(container, point)
-                        if err != nil {
-                                fmt.Printf("%v",err.Error())
-                                continue
-                        }
+			parsedgeom, _ := ParseNestedGeom(container, point)
+			if err != nil {
+				fmt.Printf("%v", err.Error())
+				continue
+			}
 
-                        newfeature := Points{Attributes: attributes, Name: record.Name}
-                        newfeature.Points = parsedgeom.([]float64)
-                        outdataset.Points = append(outdataset.Points, newfeature)
-                }
+			newfeature := Points{Attributes: attributes, Name: record.Name}
+			newfeature.Points = parsedgeom.([]float64)
+			outdataset.Points = append(outdataset.Points, newfeature)
+		}
 	}
 
 	// is route
-        if gpx.Route != nil && len(gpx.Route) >= 0 {
+	if gpx.Route != nil && len(gpx.Route) >= 0 {
 
 		for _, record := range gpx.Route {
 
 			// parse Attributes
-                        var attributes []Attribute
-                        for _, att := range record.Extensions.OGR {
-                                var attribute Attribute
-                                attribute.Key = att.Key
-                                attribute.Value = att.Value
-                                attributes = append(attributes,attribute)
-                        }
+			var attributes []Attribute
+			for _, att := range record.Extensions.OGR {
+				var attribute Attribute
+				attribute.Key = att.Key
+				attribute.Value = att.Value
+				attributes = append(attributes, attribute)
+			}
 
 			// parse Geom
 			var line [][]float64
 			for _, coord := range record.RoutePoints {
-				point := []float64{coord.Lon,coord.Lat,coord.Ele}
-				line = append(line,point)
+				point := []float64{coord.Lon, coord.Lat, coord.Ele}
+				line = append(line, point)
 			}
 
-                        parsedgeom, _ := ParseGEOJSONGeom(container, line)
-                        if err != nil {
-                                fmt.Printf("%v",err.Error())
-                                continue
-                        }
+			parsedgeom, _ := ParseNestedGeom(container, line)
+			if err != nil {
+				fmt.Printf("%v", err.Error())
+				continue
+			}
 
-                        newfeature := Lines{Attributes: attributes, Name: record.Name}
-                        newfeature.Points = parsedgeom.([][]float64)
-                        outdataset.Lines = append(outdataset.Lines, newfeature)
+			newfeature := Lines{Attributes: attributes, Name: record.Name}
+			newfeature.Points = parsedgeom.([][]float64)
+			outdataset.Lines = append(outdataset.Lines, newfeature)
 
-                }
+		}
 	}
 
 	// is track
-        if gpx.Track != nil && len(gpx.Track) >= 0 {
+	if gpx.Track != nil && len(gpx.Track) >= 0 {
 
-                for _, record := range gpx.Track {
+		for _, record := range gpx.Track {
 
-                        // parse Attributes
-                        var attributes []Attribute
-                        for _, att := range record.Extensions.OGR {
-                                var attribute Attribute
-                                attribute.Key = att.Key
-                                attribute.Value = att.Value
-                                attributes = append(attributes,attribute)
-                        }
+			// parse Attributes
+			var attributes []Attribute
+			for _, att := range record.Extensions.OGR {
+				var attribute Attribute
+				attribute.Key = att.Key
+				attribute.Value = att.Value
+				attributes = append(attributes, attribute)
+			}
 
-                        // parse Geom
-                        var line [][]float64
-                        for _, track := range record.TrackSegment {
-			  for _, coord := range track.TrackPoint {
-                                point := []float64{coord.Lon,coord.Lat,coord.Ele}
-                                line = append(line,point)
-			  }
-                        }
+			// parse Geom
+			var line [][]float64
+			for _, track := range record.TrackSegment {
+				for _, coord := range track.TrackPoint {
+					point := []float64{coord.Lon, coord.Lat, coord.Ele}
+					line = append(line, point)
+				}
+			}
 
-                        parsedgeom, _ := ParseGEOJSONGeom(container, line)
-                        if err != nil {
-                                fmt.Printf("%v",err.Error())
-                                continue
-                        }
+			parsedgeom, _ := ParseNestedGeom(container, line)
+			if err != nil {
+				fmt.Printf("%v", err.Error())
+				continue
+			}
 
-                        newfeature := Lines{Attributes: attributes, Name: record.Name}
-                        newfeature.Points = parsedgeom.([][]float64)
-                        outdataset.Lines = append(outdataset.Lines, newfeature)
+			newfeature := Lines{Attributes: attributes, Name: record.Name}
+			newfeature.Points = parsedgeom.([][]float64)
+			outdataset.Lines = append(outdataset.Lines, newfeature)
 
-                }
-        }
+		}
+	}
 
-        // close the BBOXlistener goroutine
-        close(container.ch)
+	// close the BBOXlistener goroutine
+	close(container.ch)
 
-        // configure the center point... in 4326
-        c, err := getCenter(container.bbox)
-        if err != nil {
-                // No center of dataset, which means the dataset is invalid
-                return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
-        }
-        outdataset.Center = append(outdataset.Center, c)
+	// configure the center point... in 4326
+	c, err := getCenter(container.bbox)
+	if err != nil {
+		// No center of dataset, which means the dataset is invalid
+		return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
+	}
+	outdataset.Center = append(outdataset.Center, c)
 
-        // configure the s2 array... in 4326
-        outdataset.S2 = s2covering(container.bbox)
+	// configure the s2 array... in 4326
+	outdataset.S2 = s2covering(container.bbox)
 
-        return &outdataset, nil
+	return &outdataset, nil
 }
 
 // ParseCSV ...
@@ -629,7 +629,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 	case "Point", "PointZ":
 		go func() {
 			defer wg.Done()
-			parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Point)
+			parsedgeom, err = ParseNestedGeom(container, gfeature.Geojson.Geometry.Point)
 		}()
 		wg.Wait()
 
@@ -644,7 +644,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 	case "LineString", "LineStringZ":
 		go func() {
 			defer wg.Done()
-			parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.LineString)
+			parsedgeom, err = ParseNestedGeom(container, gfeature.Geojson.Geometry.LineString)
 		}()
 		wg.Wait()
 
@@ -660,7 +660,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 	case "Polygon", "PolygonZ":
 		go func() {
 			defer wg.Done()
-			parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.Polygon)
+			parsedgeom, err = ParseNestedGeom(container, gfeature.Geojson.Geometry.Polygon)
 		}()
 		if err != nil {
 			return err
@@ -680,21 +680,21 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		}
 
 		// test if inbound geometry held elevation
-                userElev := false
+		userElev := false
 		multipolygon := gfeature.Geojson.Geometry.Polygon
-                for i := 0; i < len(multipolygon); i++ {
+		for i := 0; i < len(multipolygon); i++ {
 			coordLength := len(multipolygon[i][0])
-                        if coordLength > 2 && multipolygon[i][0][2] != 0 {
+			if coordLength > 2 && multipolygon[i][0][2] != 0 {
 				userElev = true
 			}
-                }
+		}
 
 		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
 		if userElev == true {
-                        // user specified elevation on inbound geometry, send POINTS (not drape)
-                        newfeature.Points = append(newfeature.Points,parsedgeom.([][][]float64))
-                } else {
-                        // user did not specify elevation, send MESH array (drape on surface)
+			// user specified elevation on inbound geometry, send POINTS (not drape)
+			newfeature.Points = append(newfeature.Points, parsedgeom.([][][]float64))
+		} else {
+			// user did not specify elevation, send MESH array (drape on surface)
 			newfeature.Vertices = PointcloudTo3857(polycloud)
 			newfeature.Indices = triangulation.Triangles
 		}
@@ -704,7 +704,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 	case "MultiPolygon", "MultiPolygonZ":
 		go func() {
 			defer wg.Done()
-			parsedgeom, err = ParseGEOJSONGeom(container, gfeature.Geojson.Geometry.MultiPolygon)
+			parsedgeom, err = ParseNestedGeom(container, gfeature.Geojson.Geometry.MultiPolygon)
 		}()
 		if err != nil {
 			return err
@@ -735,14 +735,14 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		verifiedtriangles := VerifyDelaunay(verifiedpointcloud, triangulation.Triangles, gfeature.Geojson.Geometry.MultiPolygon)
 
 		// test if inbound geometry held elevation
-                userElev := false
-                multipolygon := gfeature.Geojson.Geometry.MultiPolygon[0]
-                for i := 0; i < len(multipolygon); i++ {
-                        coordLength := len(multipolygon[i][0])
-                        if coordLength > 2 && multipolygon[i][0][2] != 0 {
-                                userElev = true
-                        }
-                }
+		userElev := false
+		multipolygon := gfeature.Geojson.Geometry.MultiPolygon[0]
+		for i := 0; i < len(multipolygon); i++ {
+			coordLength := len(multipolygon[i][0])
+			if coordLength > 2 && multipolygon[i][0][2] != 0 {
+				userElev = true
+			}
+		}
 
 		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
 		if userElev == true {
@@ -790,7 +790,7 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 			gfeature.StyleType = fmt.Sprintf("%v", v)
 		case "id", "fid", "osm_id", "uid", "uuid":
 			gfeature.ID = fmt.Sprintf("%v", v)
-		case "tags","way","geomz":
+		case "tags", "way", "geomz":
 			//do nothing
 		default:
 			var attrib Attribute
@@ -802,12 +802,12 @@ func ParseGEOJSONAttributes(gfeature *FeatureInfo) []Attribute {
 	return atts
 }
 
-//ParseGEOJSONGeom uses generic recursion to process the nested geometry arrays
+//ParseNestedGeom uses generic recursion to process the nested geometry arrays
 // point	[]float64
 // linestring	[][]float64 *the most common shared pattern
 // polygon	[][][]float64 --^ for loops back up to linestring
 // multipolygon	[][][][]float64 --^ for loops back up to polygon
-func ParseGEOJSONGeom(container *ExtentContainer, feature interface{}) (interface{}, error) {
+func ParseNestedGeom(container *ExtentContainer, feature interface{}) (interface{}, error) {
 
 	switch v := feature.(type) {
 
@@ -857,7 +857,7 @@ func ParseGEOJSONGeom(container *ExtentContainer, feature interface{}) (interfac
 
 		for _, element := range elementarray {
 
-			nextlevel, err := ParseGEOJSONGeom(container, element)
+			nextlevel, err := ParseNestedGeom(container, element)
 
 			if err != nil {
 				return nil, err
@@ -876,7 +876,7 @@ func ParseGEOJSONGeom(container *ExtentContainer, feature interface{}) (interfac
 
 		for _, element := range elementarray {
 
-			nextlevel, err := ParseGEOJSONGeom(container, element)
+			nextlevel, err := ParseNestedGeom(container, element)
 
 			if err != nil {
 				return nil, err
@@ -914,11 +914,11 @@ func PointcloudToDem(demdir string, pointcloud [][]float64) (*Datasets, error) {
 	for _, coord := range newcloud {
 		var point Points
 		point.Points = coord
-		dem.Points = append(dem.Points,point)
+		dem.Points = append(dem.Points, point)
 	}
 	mesh.Vertices = newcloud
 	mesh.Indices = trimmedTriangles
-	dem.Shapes = append(dem.Shapes,mesh)
+	dem.Shapes = append(dem.Shapes, mesh)
 
 	return &dem, nil
 }
@@ -993,45 +993,44 @@ func VerifyDelaunay(pointcloud [][]float64, triangles []int, multipolygon [][][]
 // TrimEdges removes triangle from DEM slice if triangle is inappropraite (connects points that shouldn't be connected eg corners to corners)
 func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
 
-        // prepare a new triangles (vertices) delaunay array... we're slicing up the old one
-        var verifiedtriangles []int
+	// prepare a new triangles (vertices) delaunay array... we're slicing up the old one
+	var verifiedtriangles []int
 
-        // get number of triangles
-        trinum := len(triangles) / 3
+	// get number of triangles
+	trinum := len(triangles) / 3
 
-        // cycle through each triangle, build it, find centroid, test if falls within multiring
-        for t := 0; t < trinum; t++ {
+	// cycle through each triangle, build it, find centroid, test if falls within multiring
+	for t := 0; t < trinum; t++ {
 
-                // each triangle is a new ring
-                var triangle orb.Ring
+		// each triangle is a new ring
+		var triangle orb.Ring
 
-                // find the points of each triangle (refer to delaunay docs)
-                var points [][]float64
-                points = append(points, pointcloud[triangles[3*t]])
-                points = append(points, pointcloud[triangles[3*t+1]])
-                points = append(points, pointcloud[triangles[3*t+2]])
+		// find the points of each triangle (refer to delaunay docs)
+		var points [][]float64
+		points = append(points, pointcloud[triangles[3*t]])
+		points = append(points, pointcloud[triangles[3*t+1]])
+		points = append(points, pointcloud[triangles[3*t+2]])
 
-                // add each coordinate to the triangle
-                triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
-                triangle = append(triangle, orb.Point{points[1][0], points[1][1]})
-                triangle = append(triangle, orb.Point{points[2][0], points[2][1]})
-                triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
-
+		// add each coordinate to the triangle
+		triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
+		triangle = append(triangle, orb.Point{points[1][0], points[1][1]})
+		triangle = append(triangle, orb.Point{points[2][0], points[2][1]})
+		triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
 
 		// OPTION 1, IF TRIANGLE HAS BIG AREA, REJECT IT
-/*
-		// don't need the center, just the area
-                triarea := planar.Area(triangle)
-		//fmt.Println("Triangle area: %v",triarea)
+		/*
+		   		// don't need the center, just the area
+		                   triarea := planar.Area(triangle)
+		   		//fmt.Println("Triangle area: %v",triarea)
 
-		// abritrary, trial and error
-                if math.Abs(triarea) > .0000000448 && math.Abs(triarea) < .0000000450 {
-                        //copy all three triangle vertices to new triangles array
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t])
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
-                }
-*/
+		   		// abritrary, trial and error
+		                   if math.Abs(triarea) > .0000000448 && math.Abs(triarea) < .0000000450 {
+		                           //copy all three triangle vertices to new triangles array
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t])
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
+		                   }
+		*/
 		// OPTION 2, IF TRIANGLE is really long, REJECT IT
 
 		trilength := planar.Length(triangle)
@@ -1040,15 +1039,14 @@ func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
 		// arbitrary, trial and error
 		if trilength < .0015 {
 			//copy all three triangle vertices to new triangles array
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t])
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
-                        verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
+			verifiedtriangles = append(verifiedtriangles, triangles[3*t])
+			verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
+			verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
 		}
 
+	}
 
-        }
-
-        return verifiedtriangles
+	return verifiedtriangles
 }
 
 func PointcloudTo3857(pointcloud [][]float64) [][]float64 {
