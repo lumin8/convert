@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/amundsentech/kml-decode"
 	"github.com/fogleman/delaunay"
 	"github.com/golang/geo/s2"
 	srtm "github.com/lumin8/elev-utils"
@@ -281,6 +283,106 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	return outdataset, nil
 }
 
+// Dataset from KML
+func DatasetFromKML(xField string, yField string, zField string, contents io.Reader) (*Datasets, error) {
+	var outdataset Datasets
+	var kml kmldecode.KML
+
+        // ensure demvrt is set, can't proceed without
+        if _, err := DemVrtPath(); err != nil {
+                return nil, err
+        }
+
+	// read the inbound file
+	raw, err := ioutil.ReadAll(contents)
+        if err != nil {
+                return &outdataset, err
+        }
+
+	kmlbuf := bytes.NewBuffer(raw)
+
+	// decode the kml into a struct
+	kmldecode.KMLDecode(kmlbuf, &kml)
+
+	// start a container to watch the coords, build bbox and center
+        container := initExtentContainer()
+
+	// get dataset name
+	outdataset.Name = kml.Document.Folder.Name
+
+	for _, record := range kml.Document.Folder.Placemarks {
+
+		// parse Attributes
+		var attributes []Attribute
+		for _, att := range record.ExtendedData.SchemaData.SimpleData {
+			var attribute Attribute
+			attribute.Key = att.Key
+			attribute.Value = att.Value
+			attributes = append(attributes,attribute)
+		}
+
+		// is point
+                if record.Point.Coordinates != nil && len(record.Point.Coordinates) >= 0 {
+			parsedgeom, _ := ParseGEOJSONGeom(container, record.Point.Coordinates)
+			if err != nil {
+				fmt.Printf("%v",err.Error())
+				continue
+			}
+
+                        newfeature := Points{Attributes: attributes, Name: record.Name}
+                        newfeature.Points = parsedgeom.([]float64)
+
+                        outdataset.Points = append(outdataset.Points, newfeature)
+		}
+
+		// is line
+		if record.MultiGeometry.LineString.Coordinates != nil && len(record.MultiGeometry.LineString.Coordinates) >= 0 {
+			parsedgeom, _ := ParseGEOJSONGeom(container, record.MultiGeometry.LineString.Coordinates)
+			if err != nil {
+                                fmt.Printf("%v",err.Error())
+				continue
+                        }
+
+			newfeature := Lines{Attributes: attributes, Name: record.Name}
+			newfeature.Points = parsedgeom.([][]float64)
+			outdataset.Lines = append(outdataset.Lines, newfeature)
+		}
+
+		// is polygon
+		if record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates != nil && len(record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates) >= 0 {
+			parsedgeom, _ := ParseGEOJSONGeom(container, record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates)
+			if err != nil {
+				fmt.Printf("%v",err.Error())
+                                continue
+                        }
+
+			// kml shapes are [][]float64, must convert to [][][][]float64
+			var poly [][][]float64
+			poly = append(poly,parsedgeom.([][]float64))
+
+                        newfeature := Shapes{Attributes: attributes, Name: record.Name}
+                        newfeature.Points = append(newfeature.Points,poly)
+                        outdataset.Shapes = append(outdataset.Shapes, newfeature)
+		}
+	}
+
+	// close the BBOXlistener goroutine
+        close(container.ch)
+
+        // configure the center point... in 4326
+        c, err := getCenter(container.bbox)
+        if err != nil {
+                // No center of dataset, which means the dataset is invalid
+                return nil, fmt.Errorf("[getCenter] in pkg [convert] encountered: %v", err)
+        }
+        outdataset.Center = append(outdataset.Center, c)
+
+        // configure the s2 array... in 4326
+        outdataset.S2 = s2covering(container.bbox)
+
+        return &outdataset, nil
+}
+
 // ParseCSV ...
 func ParseCSV(headers map[int]string, record []string, outdataset *Datasets, container *ExtentContainer) {
 
@@ -407,7 +509,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		}
 
 		// combine the attributes and the geom into a new feature
-		newfeature := Lines{Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType}
+		newfeature := Lines{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
 		newfeature.Points = parsedgeom.([][]float64)
 		outdataset.Lines = append(outdataset.Lines, newfeature)
 
@@ -443,7 +545,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 			}
                 }
 
-		newfeature := Shapes{Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType}
+		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
 		if userElev == true {
                         // user specified elevation on inbound geometry, send POINTS (not drape)
                         newfeature.Points = append(newfeature.Points,parsedgeom.([][][]float64))
@@ -498,7 +600,7 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
                         }
                 }
 
-		newfeature := Shapes{Attributes: feature.Attributes, Name: feature.Name, ID: feature.ID, StyleType: gfeature.StyleType}
+		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
 		if userElev == true {
 			// user specified elevation on inbound geometry, send POINTS (no surface drape)
 			newfeature.Points = parsedgeom.([][][][]float64)
@@ -789,10 +891,10 @@ func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
 		// OPTION 2, IF TRIANGLE is really long, REJECT IT
 
 		trilength := planar.Length(triangle)
-		fmt.Printf("Triangle length: %v",trilength)
+		//fmt.Printf("Triangle length: %v\n",trilength)
 
 		// arbitrary, trial and error
-		if trilength < .0000004 {
+		if trilength < .0015 {
 			//copy all three triangle vertices to new triangles array
                         verifiedtriangles = append(verifiedtriangles, triangles[3*t])
                         verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
@@ -885,13 +987,10 @@ func getCenter(bbox map[string]float64) (Point, error) {
 	c.Y = bbox["uy"] - (bbox["uy"]-bbox["ly"])/2
 
 	//get the center of the bbox
-	c.Z, err = GetElev(c.X, c.Y)
-	if err != nil {
-		// ok to return empty center
-		return c, fmt.Errorf("[GetElev] in pkg [convert] encountered: %v", err)
-	}
+	c.Z, _ = GetElev(c.X, c.Y)
+	// ok to return empty center
 
-	return c, nil
+	return c, err
 }
 
 // s2covering finds the s2 hash key that represents the geographic coverage of the bbox extent
@@ -956,10 +1055,10 @@ func CheckCoords(coord []float64) ([]float64, error) {
 		// enforce 3857
 		x, y := To3857(coord[0], coord[1])
 
-		// z is needed
+		// use z only if have it else set to 0
 		z, err := GetElev(coord[0], coord[1])
 		if err != nil {
-			return coord, err
+			z = 0
 		}
 		return []float64{x, y, z}, nil
 
