@@ -8,17 +8,25 @@ The output is a ```Datasets``` struct, which can hold any number of features (po
 
 The final ```Datasets``` struct must be json-marshaled prior to use in MineAR.
 
-Note: this package spawns a unique channel & goroutine for each dataset processed, called an `ExtentContainer`.  The purpose of this `ExtentContainer` is to asynchronously handle coordinates flying into the channel, figure out which four form the bottom-left and top-right coordinates of the enclosing bounding box `bbox` (aka *Extent*), which is then processed to find the Center point, to which a user will zoom if they select the `Datasets` in VR mode in MineAR.  This `bbox` also forms the basis for configuring the S2 coverage- a series of keys or 'tokens' representing certain polygons on the ground- which may be used to find associated features or datasets (eg. roads, rivers, DEM, etc) from key:value stores without having to perform complicated `ST_Intersects` queries.   The bbox and S2 keys are very important.
+Note: this package spawns a unique channel & goroutine for each dataset processed, called an `ExtentContainer`.  The purpose of this is to asynchronously handle coordinates, figure out which four form the bottom-left and top-right of the enclosing bounding box `bbox` (aka *Extent*).  The container uses the bbox to populate the s2 cell array and also find the center point.
 
 
 ## Primary Functions
 
 ### DatasetFromCSV(xField string, yField string, zField string, contents io.Reader) (*Datasets, error)
-Converts a csv file (with x, y, and z fields (if known) into a `Datasets` struct.
+Converts a CSV (with x and  y specified, and z if known) to a `Datasets` struct.
 
 
-### DatasetFromGEOJSON(xField string, yField string, zField string, contents io.Reader) (*Datasets, error)
-Converts a regular GEOJSON (x, y, and z fields are useless, geojson has rules on these field names) into a `Datasets` struct.
+### DatasetFromGEOJSON("", "", "", "", contents io.Reader) (*Datasets, error)
+Converts a GEOJSON _and any attributes!_ to a `Datasets` struct.
+
+
+### DatasetFromKML("", "", "", "", contents io.Reader) (*Datasets, error)
+Converts a KML _and extended attributes!_ to a `Datasets` struct.
+
+
+### DatasetFromGPX("", "", "", "", contents io.Reader) (*Datasets, error)
+Converts a GPX _and extended attributes!_ to a `Datasets` struct.
 
 
 ### parseGEOJSONCollection(collection *geojson.FeatureCollection, container *ExtentContainer) (*Datasets, error)
@@ -26,12 +34,12 @@ Takes a GEOJSON- which are always 'feature collections', and breaks it up into f
 You should not call this function directly, but rather DatasetFromGEOJSON or, if you have individual features, ParseGEOJSONFeature.
 
 
-### ParseGEOJSONFeature(gfeature *convert.FeatureInfo, outdataset *convert.Datasets, nil)```
+### ParseGEOJSONFeature(gfeature *convert.FeatureInfo, outdataset *convert.Datasets, nil)
 Converts each feature json into a `FeatureInfo` class, parsing both the attributes of the originating geojson and the geom of the originating geom.
 
 
-### ParseGEOJSONGeom
-Explodes the feature geometry, coordinate by coordinate, uses `GetElev` to fill in Z value if needed, and enforces EPSG:3857.
+### ParseNestedGeom
+Explodes an n depth slice geometry, uses `GetElev` to fill in Z value, and enforces EPSG:3857.  Used by GeoJSON, KML, and GPX conversion.
 
 
 ### ParseGEOJSONAttributes

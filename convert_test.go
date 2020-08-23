@@ -43,6 +43,16 @@ const (
 
 	singlemultielev       = "tests/bonanza/bonanza_multiwithelev.geojson"
 	singlemultielev_input = "tests/bonanza/bonanza_multiwithelev.json"
+
+	//kml testing datasets
+	pointskml = "tests/kml/points.kml"
+	lineskml  = "tests/kml/lines.kml"
+	shapeskml = "tests/kml/shapes.kml"
+
+	//gpx testing datasets
+	points3Dgpx = "tests/gpx/points3D.gpx"
+	linesgpx    = "tests/gpx/lines.gpx"
+	shapesgpx   = "tests/gpx/lines3D.gpx"
 )
 
 type Input struct {
@@ -107,9 +117,9 @@ func TestGEOJSONData(t *testing.T) {
 	data := make(map[string]string)
 	data[pointsgeojson] = pointsgeojson_input
 	data[lines] = lines_input
-	data[largeshapes] = largeshapes_input //polygons
-	data[manyshapes] = manyshapes_input   //multipolygons
-	data[singleshape] = singleshape_input //a single very large polygon
+	data[largeshapes] = largeshapes_input         //polygons
+	data[manyshapes] = manyshapes_input           //multipolygons
+	data[singleshape] = singleshape_input         //a single very large polygon
 	data[singlemultielev] = singlemultielev_input // multi nearly vertical
 
 	for item, inputDetails := range data {
@@ -152,10 +162,104 @@ func TestGEOJSONData(t *testing.T) {
 		fmt.Printf("conversion for %s was successful, result center is %v\n", item, results.Center)
 
 		// the following prints out the file product, useful for debugging only
-                err = ioutil.WriteFile(inputDetails+".outfile", final, 0644)
-                if err != nil {
-                        t.Errorf(err.Error())
-                }
+		err = ioutil.WriteFile(inputDetails+".outfile", final, 0644)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+	}
+}
+
+func TestKMLData(t *testing.T) {
+
+	// build a map of the testing data and inputs
+	data := make(map[string]string)
+	data[pointskml] = pointskml
+	data[lineskml] = lineskml
+	data[shapeskml] = shapeskml
+
+	for item, inputDetails := range data {
+
+		// grab the item as a reader
+		data, err := os.Open(item)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		// send the information to the tester
+		results, err := DatasetFromKML("", "", "", data)
+
+		if err != nil {
+			t.Errorf("[DatasetFromKML] in pkg [convert], kml conversion error for %s: %s\n", item, err.Error())
+		}
+
+		// parse the results
+		final, err := json.Marshal(results)
+		if err != nil {
+			t.Errorf("json marshal error for %s: %s\n", item, err.Error())
+		}
+
+		// if no center, the conversion is BUNK
+		// guessing that the final string should be more than 100 characters
+		if results == nil {
+			t.Logf("no valid features were found for %s:%v\n", item, final)
+			return
+		}
+
+		fmt.Printf("conversion for %s was successful, result center is %v\n", item, results.Center)
+
+		// the following prints out the file product, useful for debugging only
+		err = ioutil.WriteFile(inputDetails+".outfile", final, 0644)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+	}
+}
+
+func TestGPXData(t *testing.T) {
+
+	// build a map of the testing data and inputs
+	data := make(map[string]string)
+	data[points3Dgpx] = points3Dgpx
+	data[linesgpx] = linesgpx
+	data[shapesgpx] = shapesgpx
+
+	for item, inputDetails := range data {
+
+		// grab the item as a reader
+		data, err := os.Open(item)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		// send the information to the tester
+		results, err := DatasetFromGPX("", "", "", data)
+
+		if err != nil {
+			t.Errorf("[DatasetFromGPX] in pkg [convert], gpx conversion error for %s: %s\n", item, err.Error())
+		}
+
+		// parse the results
+		final, err := json.Marshal(results)
+		if err != nil {
+			t.Errorf("json marshal error for %s: %s\n", item, err.Error())
+		}
+
+		// if no center, the conversion is BUNK
+		// guessing that the final string should be more than 100 characters
+		if results == nil {
+			t.Logf("no valid features were found for %s:%v\n", item, final)
+			return
+		}
+
+		fmt.Printf("conversion for %s was successful, result center is %v\n", item, results.Center)
+
+		// the following prints out the file product, useful for debugging only
+		err = ioutil.WriteFile(inputDetails+".outfile", final, 0644)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
 
 	}
 }
