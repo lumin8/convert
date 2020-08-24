@@ -14,11 +14,11 @@ import (
 	"strconv"
 	"sync"
 
-	srtm "github.com/amundsentech/elev-utils"
 	"github.com/amundsentech/gpx-decode"
 	"github.com/amundsentech/kml-decode"
 	"github.com/fogleman/delaunay"
 	"github.com/golang/geo/s2"
+	srtm "github.com/lumin8/elev-utils"
 	geo "github.com/paulmach/go.geo"
 	geojson "github.com/paulmach/go.geojson"
 	"github.com/paulmach/orb"
@@ -79,7 +79,6 @@ type Shapes struct {
 	Indices    []int           `json:"indices" yaml:"indices"`
 }
 
-// Generic Feature ...
 // Generic Feature is a convenience, holds certain feature info
 // during recursive parsing.  Not used in any final product
 type Generic struct {
@@ -251,7 +250,7 @@ func DatasetFromGEOJSON(xField string, yField string, zField string, contents io
 	}
 
 	if len(raw) == 0 {
-		return nil, fmt.Errorf("FATAL: no data in dataset")
+		return nil, errors.New("no data in dataset")
 	}
 
 	//carries references to this dataset's ch, wg, and bbox
@@ -327,7 +326,7 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 		if record.Point.Coordinates != nil && len(record.Point.Coordinates) >= 0 {
 			parsedgeom, _ := ParseNestedGeom(container, record.Point.Coordinates)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromKML] Point encountered %v", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
@@ -341,7 +340,7 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 		if record.MultiGeometry.LineString.Coordinates != nil && len(record.MultiGeometry.LineString.Coordinates) >= 0 {
 			parsedgeom, _ := ParseNestedGeom(container, record.MultiGeometry.LineString.Coordinates)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromGPX] LineString encountered %v", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
@@ -354,42 +353,17 @@ func DatasetFromKML(xField string, yField string, zField string, contents io.Rea
 		if record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates != nil && len(record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates) >= 0 {
 			parsedgeom, _ := ParseNestedGeom(container, record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromKML] Polygon encountered %v", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
-
-			// Construct the new feature
-			newfeature := Shapes{Attributes: attributes, Name: record.Name}
 
 			// kml shapes are [][]float64, must convert to [][][][]float64
 			var poly [][][]float64
 			poly = append(poly, parsedgeom.([][]float64))
-                        newfeature.Points = append(newfeature.Points, poly)
 
-			// test if elevation exists for area
-			if len(record.MultiGeometry.Polygon.OuterBoundary.LinearRing.Coordinates[0]) < 3 {
-				// get a 3D point cloud of the polygon
-				polycloud, err := srtm.ElevationFromPolygon(demdir, poly)
-				if err != nil {
-					fmt.Printf("Warning: [srtm.ElevationFromPolygon] in pkg [convert] by kml polygon encountered: %v\n", err)
-					goto SkipToEnd
-				}
-
-				// convert polycloud into a triangulation array
-				triangulation, err := DeriveDelaunay(demdir, &polycloud)
-				if err != nil {
-					fmt.Printf("Warning: [DeriveDelaunay] in pkg [convert] by kml polygon encountered: %v\n", err)
-					goto SkipToEnd
-				}
-
-				// user did not specify elevation, so send as MESH
-				newfeature.Vertices = PointcloudTo3857(polycloud)
-				newfeature.Indices = triangulation.Triangles
-				newfeature.Points = nil
-			}
-
-			SkipToEnd:
-				outdataset.Shapes = append(outdataset.Shapes, newfeature)
+			newfeature := Shapes{Attributes: attributes, Name: record.Name}
+			newfeature.Points = append(newfeature.Points, poly)
+			outdataset.Shapes = append(outdataset.Shapes, newfeature)
 		}
 	}
 
@@ -456,7 +430,7 @@ func DatasetFromGPX(xField string, yField string, zField string, contents io.Rea
 
 			parsedgeom, _ := ParseNestedGeom(container, point)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromGPX] gpx.Waypoint encountered %v\n", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
@@ -489,7 +463,7 @@ func DatasetFromGPX(xField string, yField string, zField string, contents io.Rea
 
 			parsedgeom, _ := ParseNestedGeom(container, line)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromGPX] gpx.Route encountered %v\n", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
@@ -525,7 +499,7 @@ func DatasetFromGPX(xField string, yField string, zField string, contents io.Rea
 
 			parsedgeom, _ := ParseNestedGeom(container, line)
 			if err != nil {
-				fmt.Printf("NonFatal [DatasetFromGPX] gpx.Track encountered %v\n", err.Error())
+				fmt.Printf("%v", err.Error())
 				continue
 			}
 
@@ -693,35 +667,39 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		}
 		wg.Wait()
 
-		// construct the new feature
-		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
-		newfeature.Points = append(newfeature.Points, parsedgeom.([][][]float64))
-
-		// if elevation doesn't already exist
-                // try to build a drape
-                if len(gfeature.Geojson.Geometry.Polygon[0][0]) < 3 {
-			// get a 3D point cloud of the polygon
-			polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.Polygon)
-			if err != nil {
-				fmt.Printf("Warning: [srtm.ElevationFromPolygon] called in pkg [convert] by polygon encountered :%v\n", err)
-				goto FinalizePoly
-			}
-
-			// convert polycloud into a triangulation array
-			triangulation, err := DeriveDelaunay(demdir, &polycloud)
-			if err != nil {
-				fmt.Printf("Warning: [DeriveDelaunay] called in pkg [convert] by polygon encountered :%v\n", err)
-				goto FinalizePoly
-			}
-
-			// use MESH instead of original points
-                        newfeature.Vertices = PointcloudTo3857(polycloud)
-                        newfeature.Indices = triangulation.Triangles
-			newfeature.Points = nil
+		// get a 3D point cloud of the polygon
+		polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.Polygon)
+		if err != nil {
+			return fmt.Errorf("[PolygonToMesh] in pkg [convert] encountered: %v", err)
 		}
 
-		FinalizePoly:
-			outdataset.Shapes = append(outdataset.Shapes, newfeature)
+		// convert polycloud into a triangulation array
+		triangulation, err := DeriveDelaunay(demdir, &polycloud)
+		if err != nil {
+			return fmt.Errorf("[DeriveDelaunay] called in pkg [convert] encountered: %v", err)
+		}
+
+		// test if inbound geometry held elevation
+		userElev := false
+		multipolygon := gfeature.Geojson.Geometry.Polygon
+		for i := 0; i < len(multipolygon); i++ {
+			coordLength := len(multipolygon[i][0])
+			if coordLength > 2 && multipolygon[i][0][2] != 0 {
+				userElev = true
+			}
+		}
+
+		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
+		if userElev == true {
+			// user specified elevation on inbound geometry, send POINTS (not drape)
+			newfeature.Points = append(newfeature.Points, parsedgeom.([][][]float64))
+		} else {
+			// user did not specify elevation, send MESH array (drape on surface)
+			newfeature.Vertices = PointcloudTo3857(polycloud)
+			newfeature.Indices = triangulation.Triangles
+		}
+
+		outdataset.Shapes = append(outdataset.Shapes, newfeature)
 
 	case "MultiPolygon", "MultiPolygonZ":
 		go func() {
@@ -733,48 +711,50 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		}
 		wg.Wait()
 
-		// construct the new feature
-		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
-                newfeature.Points = parsedgeom.([][][][]float64)
-
-		// if elevation doesn't already exist
-                // try to build a drape
-                if len(gfeature.Geojson.Geometry.MultiPolygon[0][0][0]) < 3 {
-
-			// get a 3D point cloud of the polygon
-			polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.MultiPolygon[0])
-			if err != nil {
-				fmt.Printf("Warning: [srtm.ElevationFromPolygon] called in pkg [convert] by multipolygon encountered :%v\n", err)
-				goto FinalizeMulti
-			}
-
-			// remove points of the pointcloud that might fall within hole
-			var verifiedpointcloud [][]float64
-			for i, pt := range polycloud {
-				if srtm.IsPointInsideMultiPolygon(gfeature.Geojson.Geometry.MultiPolygon, pt) == true {
-					verifiedpointcloud = append(verifiedpointcloud, polycloud[i])
-				}
-			}
-
-			// convert newpolycloud into a triangulation array
-			triangulation, err := DeriveDelaunay(demdir, &verifiedpointcloud)
-			if err != nil {
-				fmt.Errorf("Warning [DeriveDelaunay] called in pkg [convert] by multipolygon encountered: %v\n", err)
-				goto FinalizeMulti
-			}
-
-			// delaunay also doesn't recognize holes
-			// parse the triangles to remove those in holes
-			verifiedtriangles := VerifyDelaunay(verifiedpointcloud, triangulation.Triangles, gfeature.Geojson.Geometry.MultiPolygon)
-
-			// use mesh instead of original points
-                        newfeature.Vertices = PointcloudTo3857(verifiedpointcloud)
-                        newfeature.Indices = verifiedtriangles
-			newfeature.Points = nil
+		// get a 3D point cloud of the polygon
+		polycloud, err := srtm.ElevationFromPolygon(demdir, gfeature.Geojson.Geometry.MultiPolygon[0])
+		if err != nil {
+			return fmt.Errorf("[PolygonToMesh] in pkg [convert] encountered: %v", err)
 		}
 
-		FinalizeMulti:
-			outdataset.Shapes = append(outdataset.Shapes, newfeature)
+		// remove points of the pointcloud that might fall within holes etc BEFORE deriving delaunay triangles
+		var verifiedpointcloud [][]float64
+		for i, pt := range polycloud {
+			if srtm.IsPointInsideMultiPolygon(gfeature.Geojson.Geometry.MultiPolygon, pt) == true {
+				verifiedpointcloud = append(verifiedpointcloud, polycloud[i])
+			}
+		}
+
+		// convert newpolycloud into a triangulation array
+		triangulation, err := DeriveDelaunay(demdir, &verifiedpointcloud)
+		if err != nil {
+			return fmt.Errorf("[DeriveDelaunay] called in pkg [convert] encountered: %v", err)
+		}
+
+		// delaunay also doesn't know about holes, so parse the triangles to remove those in holes
+		verifiedtriangles := VerifyDelaunay(verifiedpointcloud, triangulation.Triangles, gfeature.Geojson.Geometry.MultiPolygon)
+
+		// test if inbound geometry held elevation
+		userElev := false
+		multipolygon := gfeature.Geojson.Geometry.MultiPolygon[0]
+		for i := 0; i < len(multipolygon); i++ {
+			coordLength := len(multipolygon[i][0])
+			if coordLength > 2 && multipolygon[i][0][2] != 0 {
+				userElev = true
+			}
+		}
+
+		newfeature := Shapes{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
+		if userElev == true {
+			// user specified elevation on inbound geometry, send POINTS (no surface drape)
+			newfeature.Points = parsedgeom.([][][][]float64)
+		} else {
+			// user did not specify elevation on inbound, send MESH arrays (drape)
+			newfeature.Vertices = PointcloudTo3857(verifiedpointcloud)
+			newfeature.Indices = verifiedtriangles
+		}
+
+		outdataset.Shapes = append(outdataset.Shapes, newfeature)
 
 	default:
 		err = fmt.Errorf("unsupported geometry of type %v", gfeature.Geojson.Geometry.Type)
@@ -1037,7 +1017,24 @@ func TrimDEMEdges(pointcloud [][]float64, triangles []int) []int {
 		triangle = append(triangle, orb.Point{points[2][0], points[2][1]})
 		triangle = append(triangle, orb.Point{points[0][0], points[0][1]})
 
+		// OPTION 1, IF TRIANGLE HAS BIG AREA, REJECT IT
+		/*
+		   		// don't need the center, just the area
+		                   triarea := planar.Area(triangle)
+		   		//fmt.Println("Triangle area: %v",triarea)
+
+		   		// abritrary, trial and error
+		                   if math.Abs(triarea) > .0000000448 && math.Abs(triarea) < .0000000450 {
+		                           //copy all three triangle vertices to new triangles array
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t])
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t+1])
+		                           verifiedtriangles = append(verifiedtriangles, triangles[3*t+2])
+		                   }
+		*/
+		// OPTION 2, IF TRIANGLE is really long, REJECT IT
+
 		trilength := planar.Length(triangle)
+		//fmt.Printf("Triangle length: %v\n",trilength)
 
 		// arbitrary, trial and error
 		if trilength < .0015 {

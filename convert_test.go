@@ -38,11 +38,14 @@ const (
 	manyshapes       = "tests/bonanza/bonanza_outcrops.geojson"
 	manyshapes_input = "tests/bonanza/bonanza_outcrops.json"
 
-	singleshape       = "tests/twoscoop_dem_s2_level12.geojson"
-	singleshape_input = "tests/twoscoop_dem_s2_level12.json"
+	singleshape       = "tests/fake/testshape.geojson"
+        singleshape_input = "tests/fake/testshape.geojson"
 
-	singlemultielev       = "tests/bonanza/bonanza_multiwithelev.geojson"
-	singlemultielev_input = "tests/bonanza/bonanza_multiwithelev.json"
+        singleshape3D       = "tests/fake/testshape3D.geojson"
+        singleshape3D_input = "tests/fake/testshape3D.geojson"
+
+        singlemultielev       = "tests/bonanza/bonanza_multiwithelev.geojson"
+        singlemultielev_input = "tests/bonanza/bonanza_multiwithelev.json"
 
 	//kml testing datasets
 	pointskml = "tests/kml/points.kml"
