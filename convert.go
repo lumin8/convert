@@ -683,6 +683,24 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
 		newfeature.Points = parsedgeom.([][]float64)
 		outdataset.Lines = append(outdataset.Lines, newfeature)
 
+	case "MultiLineString", "MultiLineStringZ":
+		go func() {
+                        defer wg.Done()
+                        parsedgeom, err = ParseNestedGeom(container, gfeature.Geojson.Geometry.MultiLineString)
+                }()
+                if err != nil {
+                        return err
+                }
+                wg.Wait()
+
+                // construct the new feature
+                newfeature := Lines{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
+		for _, subitem := range parsedgeom.([][][]float64)[0] {
+			newfeature.Points = append(newfeature.Points, subitem)
+		}
+
+                outdataset.Lines = append(outdataset.Lines, newfeature)
+
 	case "Polygon", "PolygonZ":
 		go func() {
 			defer wg.Done()
