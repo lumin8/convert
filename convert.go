@@ -694,12 +694,11 @@ func ParseGEOJSONFeature(gfeature *FeatureInfo, outdataset *Datasets, container 
                 wg.Wait()
 
                 // construct the new feature
-                newfeature := Lines{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
-		for _, subitem := range parsedgeom.([][][]float64)[0] {
-			newfeature.Points = append(newfeature.Points, subitem)
+		for _, subitem := range parsedgeom.([][][]float64) {
+			newfeature := Lines{Attributes: feature.Attributes, Name: gfeature.Name, ID: gfeature.ID, StyleType: gfeature.StyleType}
+			newfeature.Points = subitem
+			outdataset.Lines = append(outdataset.Lines, newfeature)
 		}
-
-                outdataset.Lines = append(outdataset.Lines, newfeature)
 
 	case "Polygon", "PolygonZ":
 		go func() {
