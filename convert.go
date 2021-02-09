@@ -1283,8 +1283,8 @@ func To3857(x float64, y float64) (float64, float64) {
 	}
 
 	// trim decimals to the cm
-        xrnd = math.Round(x*100) / 100
-        yrnd = math.Round(y*100) / 100
+        xrnd := math.Round(x*100) / 100
+        yrnd := math.Round(y*100) / 100
 
 	return xrnd, yrnd
 }
