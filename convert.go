@@ -1280,11 +1280,11 @@ func To3857(x float64, y float64) (float64, float64) {
 		geo.Mercator.Project(mercPoint)
 		x = mercPoint[0]
 		y = mercPoint[1]
-
-		// trim decimals to the cm
-		x = math.Round(mercPoint[0]*100) / 100
-		y = math.Round(mercPoint[1]*100) / 100
 	}
 
-	return x, y
+	// trim decimals to the cm
+        xrnd = math.Round(x*100) / 100
+        yrnd = math.Round(y*100) / 100
+
+	return xrnd, yrnd
 }
