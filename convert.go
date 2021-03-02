@@ -187,8 +187,6 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 	headers := make(map[int]string)
 	container := initExtentContainer()
 
-	var wg sync.WaitGroup
-
 	for i, record := range raw {
 		switch i {
 		case 0:
@@ -205,15 +203,9 @@ func DatasetFromCSV(xField string, yField string, zField string, contents io.Rea
 				}
 			}
 		default:
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				ParseCSV(headers, record, &outdataset, container)
-			}()
+			ParseCSV(headers, record, &outdataset, container)
 		}
 	}
-
-	wg.Wait()
 
 	// close the BBOXlistener goroutine
 	close(container.ch)
@@ -1233,7 +1225,7 @@ func CheckCoords(coord []float64) ([]float64, error) {
 
 	default:
 		// who the hell knows but play it safe
-		return coord, errors.New("too many coords")
+		return coord, errors.New("too many vectors for point")
 	}
 }
 
@@ -1255,7 +1247,7 @@ func GetElev(x float64, y float64) (float64, error) {
 
 	// raise an error if z not found
 	if math.IsNaN(z) == true {
-		return z, errors.New("Z value is NaN, not sure why")
+		return 0, errors.New("Z value could not be found")
 	}
 
 	return z, nil

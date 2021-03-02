@@ -111,6 +111,13 @@ func TestCSVData(t *testing.T) {
 
 		fmt.Printf("conversion for %s was successful, result center is %v\n", item, results.Center)
 
+		// the following prints out the file product, useful for debugging only
+                err = ioutil.WriteFile(inputDetails+".outfile", final, 0644)
+                if err != nil {
+                        t.Errorf(err.Error())
+                }
+
+
 	}
 }
 
